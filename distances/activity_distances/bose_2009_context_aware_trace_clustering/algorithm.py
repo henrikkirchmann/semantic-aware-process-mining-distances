@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
 
-from distances.activity_distances.data_util.algorithm import transform_log_to_trace_string_list_with_padding, get_all_activities_from_list_of_traces_that_have_padding
+from distances.activity_distances.data_util.algorithm import give_log_padding
 from distances.activity_distances.bose_2009_context_aware_trace_clustering.substitution_scores import get_substitution_scores
 
 
@@ -32,14 +32,11 @@ def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[
 
 #log = xes_importer.apply('/Users/henrikkirchmann/Documents/I2NLP/semantic-aware-process-mining-distances/repairExample.xes')
 
-def get_substitution_and_insertion_scores(log, ngram_size = 3):
-    log = transform_log_to_trace_string_list_with_padding(log)
+def get_substitution_and_insertion_scores(log, alphabet, ngram_size = 3):
+    log = give_log_padding(log, ngram_size)
     #log = [['a', 'b', 'c', 'd'], ['b', 'c', 'd', 'e'], ['a', 'b', 'c'], ['a', 'd', 'c'],  ['a', 'b', 'c'], ['a', 'd', 'c']]
     #log = [['a', 'a', 'b', 'c', 'd', 'b', 'b', 'c', 'd', 'a'], ['d', 'a', 'b', 'c', 'd', 'a', 'b', 'c', 'b', 'b'], ['b', 'b', 'b', 'c', 'd', 'b', 'b', 'b', 'c', 'c', 'a', 'a'], ['a', 'a', 'a', 'd', 'a', 'b', 'b', 'c', 'c', 'c'], ['a', 'a', 'a', 'c', 'd', 'c', 'd', 'c', 'b', 'e', 'd', 'b', 'c', 'c', 'b', 'a', 'd', 'b', 'd', 'e', 'b', 'd', 'c']]
 
-    #def get_substitution_and_insertion_scores(log, ngram_size):
-    #Line 1 in Algorithm 1 & 2
-    alphabet = get_all_activities_from_list_of_traces_that_have_padding(log)
     #Line 2 in Algoirthm 1 & 2
     ngrams_dict = get_ngrams_dict(log, ngram_size)
     #Line 3 in Algoirthm 1 & 2
