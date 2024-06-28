@@ -21,11 +21,10 @@
 	<classifier name="MXML Legacy Classifier" keys="concept:name lifecycle:transition"/>
 	<classifier name="Event Name" keys="concept:name"/>
 	<classifier name="Resource" keys="org:resource"/>
-	<classifier name="Event Name AND Resource" keys="concept:name org:resource"/>
 	<string key="source" value="CPN Tools simulation"/>
 	<string key="concept:name" value="repairExample.mxml"/>
-	<string key="lifecycle:model" value="standard"/>
 	<string key="description" value="Simulated process"/>
+	<string key="lifecycle:model" value="standard"/>
 	<trace>
 		<string key="concept:name" value="1"/>
 		<string key="description" value="Simulated process instance"/>

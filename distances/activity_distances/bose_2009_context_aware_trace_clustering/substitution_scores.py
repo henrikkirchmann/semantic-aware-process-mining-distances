@@ -1,50 +1,6 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
-from math import comb, log2, log, floor
-from data_util import algorithm
-import pm4py
-import math
-from pm4py.objects.log.importer.xes import importer as xes_importer
-
-
-def transformLogToTraceStringList(log):
-    log_list = list()
-    for trace in log:
-        log_list.append(list())
-    i = 0
-    for trace in log:
-        for event in trace._list:
-            log_list[i].append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
-            #log_list[i].append(event._dict.get('concept:name'))
-
-        i += 1
-    return log_list
-
-def get_ngrams_dict(log: List[List[str]], ngram_size: int) -> Dict[Tuple[str, ...], int]:
-    ngrams_dict = defaultdict(int)  # Using defaultdict to handle counting
-
-    for sublist in log:
-        for i in range(len(sublist) - ngram_size + 1):
-            ngram = tuple(sublist[i:i + ngram_size])  # Convert the n-gram to a tuple to use as a dictionary key
-            ngrams_dict[ngram] += 1  # Increment the count for this n-gram
-
-    return dict(ngrams_dict)  # Convert back to a regular dictionary if desired
-
-
-def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[Tuple[str, ...], int]]:
-    context_dict = defaultdict(lambda: defaultdict(int))  # Nested defaultdict for context frequencies
-
-    for ngram, count in ngrams_dict.items():
-        middle_index = len(ngram) // 2
-        middle_gram = ngram[middle_index]
-        # Create context by removing the middle element
-        context_before = ngram[:middle_index]
-        context_after = ngram[middle_index + 1:]
-        surrounding_grams = context_before + context_after
-
-        context_dict[middle_gram][surrounding_grams] += count
-
-    return {k: dict(v) for k, v in context_dict.items()}  # Convert inner defaultdicts to regular dicts
+from math import log
 
 
 def get_common_context_dict(context_dict: Dict[str, Dict[Tuple[str, ...], int]]) -> Dict[
@@ -70,7 +26,7 @@ def get_common_context_dict(context_dict: Dict[str, Dict[Tuple[str, ...], int]])
 def get_cooccurrence_counts(context_dict: Dict[Tuple[str, ...], int], common_context_dict: Dict[Tuple[str, str], List[Tuple[str, ...]]], unique_activities) -> Dict[Tuple[str, str], Dict[Tuple[str, ...], int]]:
     cooccurrence_counts_dict = defaultdict(int) # Nested defaultdict for co-occurance frequencies
     #co-occurrence combinations is for ‘like’ acitivities
-    for activity in context_dict:
+    for activity in context_dict.keys():
         cooccurrence_counts = 0
         for context in context_dict[activity]:
             cooccurrence_counts_dict[(activity, activity)] += (context_dict[activity].get(context) * (context_dict[activity].get(context)-1)) / 2
@@ -108,7 +64,6 @@ def get_normalized_co_occurrence_counts(cooccurrence_counts:Dict[Tuple[str, str]
     # for value in sum_of_cooccurrence_combinations_of_allcontext_dict.values():
     #     sum_of_all += value
     # for activity_pair in sum_of_cooccurrence_combinations_of_allcontext_dict.keys():
-    #     normalized_co_occurrence_counts_dict[activity_pair] = sum_of_cooccurrence_combinations_of_allcontext_dict[activity_pair]/sum_of_all
     # return dict(normalized_co_occurrence_counts_dict)
 
 def get_probabilities_of_symbol_occurrence(normalized_cooccurrence_counts_of_allcontext_dict: Dict[Tuple[str, str], float], unique_activities: List[str]) -> Dict[str, float]:
@@ -131,15 +86,15 @@ def compute_substitution_scores(probabilities_of_symbol_occurrence, unique_activ
             if activity_1 == activity_2:
                 expected_value = probabilities_of_symbol_occurrence.get(activity_1, 0.0) * probabilities_of_symbol_occurrence.get(activity_1, 0.0)
             else:
-                expected_value = probabilities_of_symbol_occurrence[activity_1] * probabilities_of_symbol_occurrence[activity_2]
+                expected_value = 2 * probabilities_of_symbol_occurrence[activity_1] * probabilities_of_symbol_occurrence[activity_2]
             sum_of_cooccurrence = sum_of_cooccurrence_combinations_of_allcontext_dict.get((activity_1, activity_2), 0.0)
             if expected_value == 0.0:
                 substitution_scores[(activity_1, activity_2)] = 0.0
             elif sum_of_cooccurrence == 0.0:
                 #substitution_scores[(activity_1, activity_2)] = -log2(1/expected_value)
-                substitution_scores[(activity_1, activity_2)] = -log2(1/expected_value)
+                substitution_scores[(activity_1, activity_2)] = int(-1*log(1/expected_value))
             else:
-                substitution_scores[(activity_1, activity_2)] = log2(sum_of_cooccurrence/expected_value)
+                substitution_scores[(activity_1, activity_2)] = int(log(sum_of_cooccurrence/expected_value))
     return dict(substitution_scores)
 
 #Algorithm 1: Algorithm to derive substitution scores
@@ -158,7 +113,7 @@ def get_substitution_scores(unique_activity_set, context_dict):
     print(probabilities_of_symbol_occurrence)
     #Line 10-11
     substitution_scores = compute_substitution_scores(probabilities_of_symbol_occurrence, unique_activity_set, normalized_cooccurrence_counts_of_allcontext_dict)
-    return substitution_scores
+    return substitution_scores, probabilities_of_symbol_occurrence
 
 #print(substitution_scores.get(('Repair (Simple)', 'Repair (Complex)')))
 #print(substitution_scores.get(('Repair (Simple)', 'Repair (Simple)')))

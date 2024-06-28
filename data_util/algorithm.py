@@ -1,27 +1,48 @@
-from typing import List
+from pm4py.util.regex import SharedObj, get_new_char
 
+def get_act_correspondence(activities, parameters=None):
+    """
+    Gets an encoding for each activity
 
-def get_all_activities_from_list_of_traces(log: List[List[str]]) -> List[str]:
-    unique_activities = set()
-    for trace in log:
-        #adjust for different ngram size
-        for activity in trace[1:-1]:
-            unique_activities.add(activity)
-    return list(unique_activities)
+    Parameters
+    --------------
+    activities
+        Activities of the two languages
+    parameters
+        Parameters
 
-#Given Pm4py Event Log, return List of Lists of Activities (List of Traces)
-def transform_log_to_trace_string_list_with_padding(log):
-    log_list = list()
-    for trace in log:
-        log_list.append(list())
-    i = 0
-    for trace in log:
-        #adjust for different ngram size
-        log_list[i].append(".")
-        for event in trace._list:
-            log_list[i].append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
-            #log_list[i].append(event._dict.get('concept:name'))
-        log_list[i].append(".")
-        i += 1
-    return log_list
+    Returns
+    -------------
+    encoding
+        Encoding into hex characters
+    """
+    if parameters is None:
+        parameters = {}
+
+    shared_obj = SharedObj()
+    ret = {}
+    for act in activities:
+        get_new_char(act, shared_obj)
+        ret[act] = shared_obj.mapping_dictio[act]
+
+    return ret
+
+enc1, enc2 = encode_two_languages(lang1, lang2, parameters=parameters)
+
+    # transform everything into a numpy array
+    first_histogram = np.array([x[1] for x in enc1])
+    second_histogram = np.array([x[1] for x in enc2])
+
+    # including a distance matrix that includes the distance between
+    # the traces
+    distance_matrix = []
+    for x in enc1:
+        distance_matrix.append([])
+        for y in enc2:
+            # calculates the (normalized) distance between the strings
+            dist = distance_function(x[0], y[0])
+            distance_matrix[-1].append(float(dist))
+
+    distance_matrix = np.array(distance_matrix)
+
 

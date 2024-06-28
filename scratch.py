@@ -1,9 +1,7 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
 from math import comb, log2
-from data_util import algorithm
-import pm4py
-import math
+from distances.activity_distances.data_util import algorithm
 from pm4py.objects.log.importer.xes import importer as xes_importer
 
 
@@ -133,7 +131,7 @@ log = transformLogToTraceStringList(log)
 #Algorithm 1: Algorithm to derive substitution scores
 #Line 1
 ngram_size = 3
-unique_activity_set = algorithm.get_all_activities_from_list_of_traces(log)
+unique_activity_set = algorithm.get_all_activities_from_list_of_traces_that_have_padding(log)
 #Line 2
 ngrams_dict = get_ngrams_dict(log, ngram_size)
 print(ngrams_dict)
