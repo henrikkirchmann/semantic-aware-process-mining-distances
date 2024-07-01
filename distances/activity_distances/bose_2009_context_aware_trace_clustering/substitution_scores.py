@@ -101,16 +101,16 @@ def compute_substitution_scores(probabilities_of_symbol_occurrence, unique_activ
 def get_substitution_scores(unique_activity_set, context_dict):
     #Line 4
     common_context_dict = get_common_context_dict(context_dict)
-    print(common_context_dict)
+    #print(common_context_dict)
     #Line 5
     cooccurrence_counts = get_cooccurrence_counts(context_dict, common_context_dict, unique_activity_set)
-    print(cooccurrence_counts)
+    #print(cooccurrence_counts)
     #Line 6-8
     normalized_cooccurrence_counts_of_allcontext_dict = get_normalized_co_occurrence_counts(cooccurrence_counts)
-    print(normalized_cooccurrence_counts_of_allcontext_dict)
+    #print(normalized_cooccurrence_counts_of_allcontext_dict)
     #Line 9
     probabilities_of_symbol_occurrence = get_probabilities_of_symbol_occurrence(normalized_cooccurrence_counts_of_allcontext_dict, unique_activity_set)
-    print(probabilities_of_symbol_occurrence)
+    #print(probabilities_of_symbol_occurrence)
     #Line 10-11
     substitution_scores = compute_substitution_scores(probabilities_of_symbol_occurrence, unique_activity_set, normalized_cooccurrence_counts_of_allcontext_dict)
     return substitution_scores, probabilities_of_symbol_occurrence

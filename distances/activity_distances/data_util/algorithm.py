@@ -13,7 +13,7 @@ def give_log_padding(log, ngram_size):
         padding_right = padding_left
     else:
         padding_left = ["."]*(ngram_size-middle_index + 1)
-        padding_left = ["."]*(ngram_size-middle_index)
+        padding_right = ["."]*(ngram_size-middle_index)
     for trace in log:
         #adjust for different ngram size
         log_list[i].extend(padding_left)
