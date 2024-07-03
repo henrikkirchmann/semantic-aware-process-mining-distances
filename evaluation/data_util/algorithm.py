@@ -74,6 +74,8 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
     for replaced_activity in replaced_activities:
         for i in range(activities_to_replace_with_count):
             replaced_activity_i = replaced_activity + ':' + str(i)
+            #if replaced_activity_i == "Release E:1":
+            #    print("a")
             # Collect all similarity scores for the current replaced_activity
             distances = []
             for (activity1, activity2), distance in similarity_scores_of_activities.items():
@@ -82,15 +84,16 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
                     if other_activity != replaced_activity_i:
                         distances.append((other_activity, distance))
 
-            # Sort distances by the similarity score (distance)
-            distances.sort(key=lambda x: x[1], reverse=True)
+            if len(distances) > 0:
+                # Sort distances by the similarity score (distance)
+                distances.sort(key=lambda x: x[1], reverse=True)
 
 
-            # Get the top n nearest neighbors
-            nearest_neighbors = [activity for activity, _ in distances[:n]]
+                # Get the top n nearest neighbors
+                nearest_neighbors = [activity for activity, _ in distances[:n]]
 
-            # Store the nearest neighbors in the dictionary
-            neighbors[replaced_activity_i] = nearest_neighbors
+                # Store the nearest neighbors in the dictionary
+                neighbors[replaced_activity_i] = nearest_neighbors
 
     return neighbors
 
@@ -119,7 +122,10 @@ def get_precision_at_k(knn_dict, activity_distances):
                         for activity in knn_dict[activity_distance][replaced_activities][replaced_activity_with]:
                             if activity[:-2] == replaced_activity_with[:-2]:
                                 precision_sum += 1
-                        precision_at_k_sum += precision_sum / len(knn_dict[activity_distance][replaced_activities][replaced_activity_with])
+                        a = len(knn_dict[activity_distance][replaced_activities][replaced_activity_with])
+                        if a == 0:
+                            print("a")
+                        precision_at_k_sum += precision_sum / a
             precision_replaced_activity_at_k += precision_at_k_sum / len(knn_dict[activity_distance][replaced_activities].keys())
         precision_at_k_dict[activity_distance] = precision_replaced_activity_at_k / len(knn_dict[activity_distance].keys())
     return dict(precision_at_k_dict)

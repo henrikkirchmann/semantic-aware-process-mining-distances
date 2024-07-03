@@ -14,7 +14,7 @@ from definitions import ROOT_DIR
 from evaluation.data_util.algorithm import get_log_control_flow_perspective, get_alphabet, get_activities_to_replace, \
     get_logs_with_replaced_activities_dict, get_activity_distance_matrix_dict, get_n_nearest_neighbors, get_knn_dict, get_precision_at_k
 
-log = xes_importer.apply(ROOT_DIR + '/repairExample.xes')
+log = xes_importer.apply(ROOT_DIR + '/event_logs/Sepsis Cases - Event Log.xes')
 
 log_control_flow_perspective = get_log_control_flow_perspective(
     log)  # transform log to a list of lists of activity labels
@@ -71,5 +71,8 @@ rc('font', **{'family': 'serif', 'size': 20})
 cmap = sns.cm.rocket_r
 ax = sns.heatmap(result, cmap=cmap, vmin =0, vmax=1, annot=True, linewidth=.5)
 ax.invert_yaxis()
+
+plt.savefig("Histo.pdf", format="pdf",
+            transparent=True)
 plt.show()
 

@@ -123,7 +123,7 @@ def get_substitution_scores(probabilities_of_symbol_occurrence, unique_activitie
 
 
 # Example usage
-log = xes_importer.apply('repairExample.xes')
+log = xes_importer.apply('event_logs/repairExample.xes')
 log = transformLogToTraceStringList(log)
 #log = [['a', 'b', 'c', 'd'], ['b', 'c', 'd', 'e'], ['a', 'b', 'c'], ['a', 'd', 'c'],  ['a', 'b', 'c'], ['a', 'd', 'c']]
 #log = [['a', 'a', 'b', 'c', 'd', 'b', 'b', 'c', 'd', 'a'], ['d', 'a', 'b', 'c', 'd', 'a', 'b', 'c', 'b', 'b'], ['b', 'b', 'b', 'c', 'd', 'b', 'b', 'b', 'c', 'c', 'a', 'a'], ['a', 'a', 'a', 'd', 'a', 'b', 'b', 'c', 'c', 'c'], ['a', 'a', 'a', 'c', 'd', 'c', 'd', 'c', 'b', 'e', 'd', 'b', 'c', 'c', 'b', 'a', 'd', 'b', 'd', 'e', 'b', 'd', 'c']]
