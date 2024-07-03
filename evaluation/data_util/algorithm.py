@@ -24,7 +24,6 @@ def get_log_control_flow_perspective(log):
 def get_alphabet(log: List[List[str]]) -> List[str]:
     unique_activities = set()
     for trace in log:
-        # adjust for different ngram size
         for activity in trace:
             unique_activities.add(activity)
     return list(unique_activities)
@@ -80,10 +79,12 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
             for (activity1, activity2), distance in similarity_scores_of_activities.items():
                 if replaced_activity_i == activity1:
                     other_activity = activity2
-                    distances.append((other_activity, distance))
+                    if other_activity != replaced_activity_i:
+                        distances.append((other_activity, distance))
 
             # Sort distances by the similarity score (distance)
-            distances.sort(key=lambda x: x[1])
+            distances.sort(key=lambda x: x[1], reverse=True)
+
 
             # Get the top n nearest neighbors
             nearest_neighbors = [activity for activity, _ in distances[:n]]
@@ -92,3 +93,37 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
             neighbors[replaced_activity_i] = nearest_neighbors
 
     return neighbors
+
+def get_knn_dict(activity_distance_matrix_dict,
+                            activities_to_replace_with_count):
+    knn_dict = defaultdict(lambda: defaultdict())
+    for activity_distance_function in activity_distance_matrix_dict:
+        for replaced_activities in activity_distance_matrix_dict[activity_distance_function].keys():
+            nearest_neighbors = get_n_nearest_neighbors(activities_to_replace_with_count-1, replaced_activities,
+                                                        activity_distance_matrix_dict["Bose 2009 Substitution Scores"][
+                                                            replaced_activities], activities_to_replace_with_count)
+
+            knn_dict[activity_distance_function][replaced_activities] = nearest_neighbors
+    return dict(knn_dict)
+
+def get_precision_at_k(knn_dict, activity_distances):
+    precision_at_k_dict = defaultdict(float)
+    for activity_distance in activity_distances:
+        precision_replaced_activity_at_k = 0
+        for replaced_activities in knn_dict[activity_distance].keys():
+            precision_at_k_sum = 0
+            for replaced_activity in replaced_activities:
+                for replaced_activity_with in knn_dict[activity_distance][replaced_activities].keys():
+                    if replaced_activity_with[:-2] == replaced_activity:
+                        precision_sum = 0
+                        for activity in knn_dict[activity_distance][replaced_activities][replaced_activity_with]:
+                            if activity[:-2] == replaced_activity_with[:-2]:
+                                precision_sum += 1
+                        precision_at_k_sum += precision_sum / len(knn_dict[activity_distance][replaced_activities][replaced_activity_with])
+            precision_replaced_activity_at_k += precision_at_k_sum / len(knn_dict[activity_distance][replaced_activities].keys())
+        precision_at_k_dict[activity_distance] = precision_replaced_activity_at_k / len(knn_dict[activity_distance].keys())
+    return dict(precision_at_k_dict)
+
+
+
+
