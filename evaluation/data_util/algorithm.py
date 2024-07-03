@@ -37,19 +37,23 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                                            different_activities_to_replace_count, activities_to_replace_with_count):
     logs_with_replaced_activities_dict = dict()
     for activities_to_replace_tuple in activities_to_replace_in_each_run_list:
-        log_with_replaced_activities = deepcopy(log_control_flow_perspective)
-        for trace in log_with_replaced_activities:
+        #log_with_replaced_activities = deepcopy(log_control_flow_perspective)
+        log_with_replaced_activities = []
+        for trace in log_control_flow_perspective:
             i = 0
             # to replace all activites we want to replace in a trace with the same new activity we need to store the activity we choose for this trace
             activities_to_replace_with = [None] * different_activities_to_replace_count
+            trace_with_replaced_activities = []
             for activity in trace:
+                trace_with_replaced_activities.append(activity)
                 if activity in activities_to_replace_tuple:
                     activity_index = activities_to_replace_tuple.index(activity)
                     if activities_to_replace_with[activity_index] is None:
                         activities_to_replace_with[activity_index] = activity + ':' + str(
                             random.randint(0, activities_to_replace_with_count - 1))
-                    trace[i] = activities_to_replace_with[activity_index]
+                    trace_with_replaced_activities[i] = activities_to_replace_with[activity_index]
                 i += 1
+            log_with_replaced_activities.append(trace_with_replaced_activities)
         logs_with_replaced_activities_dict[activities_to_replace_tuple] = log_with_replaced_activities
     return logs_with_replaced_activities_dict
 

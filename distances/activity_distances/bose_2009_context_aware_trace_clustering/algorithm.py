@@ -7,7 +7,6 @@ from distances.activity_distances.bose_2009_context_aware_trace_clustering.subst
 
 def get_ngrams_dict(log: List[List[str]], ngram_size: int) -> Dict[Tuple[str, ...], int]:
     ngrams_dict = defaultdict(int)  # Using defaultdict to handle counting
-
     for sublist in log:
         for i in range(len(sublist) - ngram_size + 1):
             ngram = tuple(sublist[i:i + ngram_size])  # Convert the n-gram to a tuple to use as a dictionary key
