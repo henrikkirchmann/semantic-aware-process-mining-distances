@@ -49,15 +49,15 @@ def process_combination(args):
 
 
 if __name__ == '__main__':
-    log = xes_importer.apply(ROOT_DIR + '/event_logs/repairExample.xes')
+    log = xes_importer.apply(ROOT_DIR + '/event_logs/Sepsis.xes')
     log_control_flow_perspective = get_log_control_flow_perspective(log)
     alphabet = get_alphabet(log_control_flow_perspective)
 
     combinations = [
         (
         different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet)
-        for different_activities_to_replace_count in range(1, len(alphabet))
-        for activities_to_replace_with_count in range(2, 10)
+        for different_activities_to_replace_count in range(1, 6)
+        for activities_to_replace_with_count in range(2, 6)
     ]
 
     with Pool() as pool:

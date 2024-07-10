@@ -38,6 +38,9 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
     logs_with_replaced_activities_dict = dict()
     for activities_to_replace_tuple in activities_to_replace_in_each_run_list:
         #log_with_replaced_activities = deepcopy(log_control_flow_perspective)
+        replacing_activities_dict = dict()
+        for activity in activities_to_replace_tuple:
+            replacing_activities_dict[activity] = set(range(activities_to_replace_with_count))
         log_with_replaced_activities = []
         for trace in log_control_flow_perspective:
             i = 0
@@ -49,8 +52,9 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                 if activity in activities_to_replace_tuple:
                     activity_index = activities_to_replace_tuple.index(activity)
                     if activities_to_replace_with[activity_index] is None:
-                        activities_to_replace_with[activity_index] = activity + ':' + str(
-                            random.randint(0, activities_to_replace_with_count - 1))
+                        if len(replacing_activities_dict[activity]) == 0:
+                            replacing_activities_dict[activity] = set(range(activities_to_replace_with_count))
+                        activities_to_replace_with[activity_index] = activity + ':' + str(replacing_activities_dict[activity].pop())
                     trace_with_replaced_activities[i] = activities_to_replace_with[activity_index]
                 i += 1
             log_with_replaced_activities.append(trace_with_replaced_activities)
@@ -106,7 +110,7 @@ def get_knn_dict(activity_distance_matrix_dict,
     knn_dict = defaultdict(lambda: defaultdict())
     for activity_distance_function in activity_distance_matrix_dict:
         for replaced_activities in activity_distance_matrix_dict[activity_distance_function].keys():
-            nearest_neighbors = get_n_nearest_neighbors(activities_to_replace_with_count-1, replaced_activities,
+            nearest_neighbors = get_n_nearest_neighbors(1, replaced_activities,
                                                         activity_distance_matrix_dict["Bose 2009 Substitution Scores"][
                                                             replaced_activities], activities_to_replace_with_count)
 
