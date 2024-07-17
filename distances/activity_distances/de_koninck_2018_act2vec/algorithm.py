@@ -7,8 +7,10 @@ from sklearn.manifold import TSNE  # final reduction
 
 def get_act2vec_distance_matrix(log, alphabet, sg = 0):
     vectorsize = 16
-    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=9, min_count=0, alpha=0.025,
-                                   min_alpha=0.005, epochs=10, sg=sg)
+    #model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=9, min_count=0, alpha=0.025, min_alpha=0.005, epochs=10, sg=sg)
+
+    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=3, min_count=0, alpha=0.3,
+                                   min_alpha=0.025, epochs=10, sg=sg)
 
     ''' 
     if random.randint(1,100) == 1:

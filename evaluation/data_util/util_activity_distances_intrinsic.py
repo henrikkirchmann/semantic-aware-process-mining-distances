@@ -86,7 +86,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
     return dict(activity_distance_matrix_dict)
 
 
-def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activities, activities_to_replace_with_count):
+def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activities, activities_to_replace_with_count, reverse):
     neighbors = dict()
     for replaced_activity in replaced_activities:
         for i in range(activities_to_replace_with_count):
@@ -103,7 +103,7 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
 
             if len(distances) > 0:
                 # Sort distances by the similarity score (distance)
-                distances.sort(key=lambda x: x[1], reverse=True)
+                distances.sort(key=lambda x: x[1], reverse=reverse)
 
 
                 # Get the top n nearest neighbors
@@ -115,13 +115,13 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
     return neighbors
 
 def get_knn_dict(activity_distance_matrix_dict,
-                            activities_to_replace_with_count):
+                            activities_to_replace_with_count, reverse, knn_count):
     knn_dict = defaultdict(lambda: defaultdict())
     for activity_distance_function in activity_distance_matrix_dict:
         for replaced_activities in activity_distance_matrix_dict[activity_distance_function].keys():
-            nearest_neighbors = get_n_nearest_neighbors(1, replaced_activities,
+            nearest_neighbors = get_n_nearest_neighbors(knn_count , replaced_activities,
                                                         activity_distance_matrix_dict[activity_distance_function][
-                                                            replaced_activities], activities_to_replace_with_count)
+                                                            replaced_activities], activities_to_replace_with_count, reverse)
 
             knn_dict[activity_distance_function][replaced_activities] = nearest_neighbors
     return dict(knn_dict)
