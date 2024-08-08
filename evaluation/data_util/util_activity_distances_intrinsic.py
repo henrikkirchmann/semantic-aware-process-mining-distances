@@ -4,11 +4,6 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import List
 
-from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
-    get_substitution_and_insertion_scores
-from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
-
-
 def get_log_control_flow_perspective(log):
     log_list = list()
     for trace in log:
@@ -20,14 +15,6 @@ def get_log_control_flow_perspective(log):
             log_list[i].append(event._dict.get('concept:name'))
         i += 1
     return log_list
-
-
-def get_alphabet(log: List[List[str]]) -> List[str]:
-    unique_activities = set()
-    for trace in log:
-        for activity in trace:
-            unique_activities.add(activity)
-    return list(unique_activities)
 
 
 def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int):
@@ -61,30 +48,6 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
             log_with_replaced_activities.append(trace_with_replaced_activities)
         logs_with_replaced_activities_dict[activities_to_replace_tuple] = log_with_replaced_activities
     return logs_with_replaced_activities_dict
-
-
-def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_replaced_activities_dict, n_gram_size_bose_2009 = 3):
-    activity_distance_matrix_dict = defaultdict(lambda: defaultdict())
-    for activity_distance_function in activity_distance_functions:
-            if "Bose 2009 Substitution Scores" == activity_distance_function:
-                for key in logs_with_replaced_activities_dict:
-                    activity_distance_matrix = get_substitution_and_insertion_scores(
-                        logs_with_replaced_activities_dict[key],
-                        get_alphabet(
-                            logs_with_replaced_activities_dict[
-                                key]), n_gram_size_bose_2009)
-                    activity_distance_matrix_dict[activity_distance_function][key] = activity_distance_matrix
-            elif "De Koninck 2018 act2vec" == activity_distance_function[:23]:
-                if activity_distance_function[24:] == "CBOW":
-                    sg = 0
-                else:
-                    sg = 1
-                for key in logs_with_replaced_activities_dict:
-                    act2vec_distance_matrix = get_act2vec_distance_matrix(logs_with_replaced_activities_dict[key],
-                        get_alphabet(logs_with_replaced_activities_dict[key]), sg)
-                    activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
-    return dict(activity_distance_matrix_dict)
-
 
 def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activities, activities_to_replace_with_count, reverse):
     neighbors = dict()

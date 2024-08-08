@@ -9,13 +9,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from definitions import ROOT_DIR
+
+from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict
+
 from evaluation.data_util.util_activity_distances_intrinsic import (
-    get_log_control_flow_perspective, get_alphabet, get_activities_to_replace,
-    get_logs_with_replaced_activities_dict, get_activity_distance_matrix_dict,
+    get_log_control_flow_perspective, get_activities_to_replace,
+    get_logs_with_replaced_activities_dict,
     get_knn_dict, get_precision_at_k
-)
-from evaluation.data_util.util_activity_distances_extrensic import (
-    get_sublog_list, get_activity_distance_matrix
 )
 
 def evaluate_intrinsic(activity_distance_functions, log_list):
@@ -35,7 +35,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
                 (
                 different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, [activity_distance_function])
                 for different_activities_to_replace_count in range(1, len(alphabet))
-                for activities_to_replace_with_count in range(2, 10)
+                for activities_to_replace_with_count in range(2, 5+1)
             ]
 
             with Pool() as pool:
@@ -115,51 +115,6 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     plt.show()
 
 
-def evaluate_extrensic(activity_distance_functions, event_log_folder):
-
-    sublog_list = get_sublog_list(event_log_folder)
-
-    log_control_flow_perspective = [inner for outer in sublog_list for inner in outer]
-
-    alphabet = get_alphabet(log_control_flow_perspective)
-
-    combinations = [
-        (log_control_flow_perspective, activity_distance_function, alphabet)
-        for activity_distance_function in activity_distance_functions
-    ]
-
-    with Pool() as pool:
-        activity_distance_matrix_dict_list = pool.map(get_activity_distance_matrix_dict_list, combinations)
-
-    combinations = [
-        (sublog_list, activity_distance_matrix_dict, alphabet)
-        for activity_distance_matrix_dict in activity_distance_matrix_dict_list
-    ]
-    with Pool() as pool:
-        results = pool.map(get_activity_distance_matrix_dict_list, combinations)
-
-
-
-def get_activity_distance_matrix_dict_list(args):
-    log_control_flow_perspective, activity_distance_function, alphabet = args
-
-    n_gram_size_bose_2009 = 3
-
-    get_distance_matrix = get_activity_distance_matrix(log_control_flow_perspective, activity_distance_function, alphabet, n_gram_size_bose_2009)
-
-    # Step 1: Find the minimum and maximum values
-    min_value = min(get_distance_matrix[activity_distance_function].values())
-    max_value = max(get_distance_matrix[activity_distance_function].values())
-
-    # Step 2: Normalize the values
-    normalized_data = {key: (value - min_value) / (max_value - min_value) for key, value in get_distance_matrix[activity_distance_function].items()}
-
-    distance_dict = dict()
-    distance_dict[activity_distance_function] = normalized_data
-
-    return distance_dict
-
-
 
 
 if __name__ == '__main__':
@@ -167,9 +122,9 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
-    #activity_distance_functions.append("Bose 2009 Substitution Scores")
-    # activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+    activity_distance_functions.append("Bose 2009 Substitution Scores")
+    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    #activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     ##############################################################################
 
     ##############################################################################
@@ -189,13 +144,6 @@ if __name__ == '__main__':
 
     evaluate_intrinsic(activity_distance_functions, log_list)
 
-    ##############################################################################
-    # extrensic - event logs we want to evaluate
-    event_log_folder = "pdc_2022"
-    #log_list.append("Sepsis")
-    ##############################################################################
-
-    #evaluate_extrensic(activity_distance_functions, event_log_folder)
 
 
 

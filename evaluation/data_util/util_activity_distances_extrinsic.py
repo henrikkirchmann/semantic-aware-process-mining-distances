@@ -28,21 +28,4 @@ def get_sublog_list(folder):
 
 
 
-def get_activity_distance_matrix(log_control_flow_perspective, activity_distance_function, alphabet, n_gram_size_bose_2009 = 3):
-    activity_distance_matrix_dict = defaultdict()
-    if "Bose 2009 Substitution Scores" == activity_distance_function:
-        activity_distance_matrix = get_substitution_and_insertion_scores(
-                log_control_flow_perspective,
-                alphabet, n_gram_size_bose_2009)
-        activity_distance_matrix_dict[activity_distance_function] = activity_distance_matrix
-    elif "De Koninck 2018 act2vec" == activity_distance_function[:23]:
-        if activity_distance_function[24:] == "CBOW":
-            sg = 0
-        else:
-            sg = 1
-        act2vec_distance_matrix = get_act2vec_distance_matrix(log_control_flow_perspective,
-                alphabet, sg)
-        activity_distance_matrix_dict[activity_distance_function] = act2vec_distance_matrix
-    return dict(activity_distance_matrix_dict)
-
 #get_sublog_list("pdc_2019")
