@@ -92,9 +92,13 @@ def compute_substitution_scores(probabilities_of_symbol_occurrence, unique_activ
                 substitution_scores[(activity_1, activity_2)] = 0.0
             elif sum_of_cooccurrence == 0.0:
                 #substitution_scores[(activity_1, activity_2)] = -log2(1/expected_value)
-                substitution_scores[(activity_1, activity_2)] = int(-1*log(1/expected_value))
+                #substitution_scores[(activity_1, activity_2)] = int(-1*log(1/expected_value))
+                substitution_scores[(activity_1, activity_2)] = -1*log(1/expected_value)
+
             else:
-                substitution_scores[(activity_1, activity_2)] = int(log(sum_of_cooccurrence/expected_value))
+                #substitution_scores[(activity_1, activity_2)] = int(log(sum_of_cooccurrence/expected_value))
+                substitution_scores[(activity_1, activity_2)] = log(sum_of_cooccurrence/expected_value)
+
     return dict(substitution_scores)
 
 #Algorithm 1: Algorithm to derive substitution scores

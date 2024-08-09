@@ -10,7 +10,7 @@ from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_a
 from evaluation.data_util.util_activity_distances_intrinsic import get_log_control_flow_perspective
 from definitions import ROOT_DIR
 from pm4py.objects.log.importer.xes import importer as xes_importer
-
+from distances.trace_distances.edit_distance.levenshtein.algorithm import get_levenshtein_distance
 
 def get_sublog_list(folder):
     i = 0
@@ -27,5 +27,30 @@ def get_sublog_list(folder):
     return sublog_list
 
 
-
+def get_trace_distances(trace, all_trace_list, activity_distance_matrix_dict):
+    trace_distance_list = list()
+    for trace_tuple in all_trace_list:
+        if trace[0] != trace_tuple[0]:  # do not compute distance between same trace
+            trace_distance_list.append((get_levenshtein_distance(trace[2], trace_tuple[2], activity_distance_matrix_dict),) + trace_tuple)
+    return trace_distance_list
 #get_sublog_list("pdc_2019")
+
+def get_precision_values(trace_distance_list, trace, sublogsize_list):
+    # Sort distances by the similarity score (distance)
+    trace_distance_list.sort(key=lambda x: x[0], reverse=False)
+
+    # precision@1 (nn)
+    if trace_distance_list[0][2] == trace[1]:
+        precision_at_1 = 1
+    else:
+        precision_at_1 = 0
+
+    k = sublogsize_list[trace[1]]
+    # precision_at_k
+    same_sub_log_traces_count = 0
+    for trace_tuple in trace_distance_list[:k]:
+        if trace_tuple[2] == trace[1]:
+            same_sub_log_traces_count += 1
+    precision_at_k = same_sub_log_traces_count / k
+
+    return precision_at_1, precision_at_k
