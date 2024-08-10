@@ -1,5 +1,6 @@
 import gc
 from multiprocessing import Pool
+from pathlib import Path
 
 import pm4py
 from pm4py.objects.log.importer.xes import importer as xes_importer
@@ -100,7 +101,8 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
     ax.set_title("precision@w-1 for " + log_name + "\n" +activity_distance_function, pad=20)
-    plt.savefig("Histo.pdf", format="pdf", transparent=True)
+    Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + ".pdf", format="pdf", transparent=True)
     plt.show()
     #heat map precision@1
     result = df.pivot(index='w', columns='r', values='precision@1')
@@ -111,7 +113,8 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
     ax.set_title("precision@1 for " + log_name + "\n" +activity_distance_function, pad=20)
-    plt.savefig("Histo.pdf", format="pdf", transparent=True)
+    Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + ".pdf", format="pdf", transparent=True)
     plt.show()
 
 
