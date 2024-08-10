@@ -22,9 +22,10 @@ def get_act2vec_distance_matrix(log, alphabet, sg = 0):
 
     # Compute distances between all pairs of activities
     distances = {}
-    for activity1, activity2 in combinations(alphabet, 2):
-        distance = model.wv.distance(activity1, activity2)
-        distances[(activity1, activity2)] = distance
+    for activity1 in alphabet:
+        for activity2 in alphabet:
+            distance = model.wv.distance(activity1, activity2)
+            distances[(activity1, activity2)] = distance
 
     return distances
 

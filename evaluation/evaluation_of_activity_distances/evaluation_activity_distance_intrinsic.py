@@ -35,7 +35,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
                 (
                 different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, [activity_distance_function])
                 for different_activities_to_replace_count in range(1, len(alphabet))
-                for activities_to_replace_with_count in range(2, 5+1)
+                for activities_to_replace_with_count in range(2, 20+1)
             ]
 
             with Pool() as pool:
@@ -95,7 +95,7 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     result = df.pivot(index='w', columns='r', values='precision@w-1')
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(11, 9))
+    f, ax = plt.subplots(figsize=(11, 15))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
@@ -106,7 +106,7 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     result = df.pivot(index='w', columns='r', values='precision@1')
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(11, 9))
+    f, ax = plt.subplots(figsize=(11, 15))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
