@@ -55,7 +55,7 @@ def extrinisc_evaluation(args):
 
     precison_list = list()
 
-    for trace in trace_list: #[:10]
+    for trace in trace_list[:10]:
         trace_distance_list = get_trace_distances(trace, all_trace_list, activity_distance_matrix_dict)
 
         precison_list.append(get_precision_values(trace_distance_list, trace, sublogsize_list))
