@@ -1,4 +1,5 @@
 import gc
+import multiprocessing
 from multiprocessing import Pool
 from pathlib import Path
 import random
@@ -35,6 +36,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         r = len(alphabet)
         w = 20
 
+
         combinations = [
             (
             different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_functions)
@@ -42,7 +44,17 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
             for activities_to_replace_with_count in range(2, w+1)
         ]
 
-        with Pool() as pool:
+
+        total_cores = multiprocessing.cpu_count()
+
+        # Limit to half the available cores, for example
+        # Calculate 75% of the available cores
+        cores_to_use = int(total_cores * 0.75)
+
+        # Ensure at least one core is used
+        cores_to_use = max(1, cores_to_use)
+
+        with Pool(processes=cores_to_use) as pool:
             results = pool.map(intrinsic_evaluation, combinations)
 
     activity_distance_function_index = 0
