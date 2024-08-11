@@ -1,7 +1,7 @@
 import gc
 from multiprocessing import Pool
 from pathlib import Path
-
+import random
 import pm4py
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.statistics.variants.log import get as variants_module
@@ -26,30 +26,44 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         log_control_flow_perspective = get_log_control_flow_perspective(log)
         alphabet = get_alphabet(log_control_flow_perspective)
 
-        for activity_distance_function in activity_distance_functions:
+        #for activity_distance_function in activity_distance_functions:
 
-            ########################
-            # Intrinsic evaluation #
-            ########################
+        ########################
+        # Intrinsic evaluation #
+        ########################
 
-            combinations = [
-                (
-                different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, [activity_distance_function])
-                for different_activities_to_replace_count in range(1, len(alphabet))
-                for activities_to_replace_with_count in range(2, 20+1)
-            ]
+        r = len(alphabet)
+        w = 20
 
-            with Pool() as pool:
-                results = pool.map(intrinsic_evaluation, combinations)
+        combinations = [
+            (
+            different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_functions)
+            for different_activities_to_replace_count in range(1, r+1)
+            for activities_to_replace_with_count in range(2, w+1)
+        ]
 
-            visualization_intrinsic_evaluation(results, activity_distance_function, log_name)
+        with Pool() as pool:
+            results = pool.map(intrinsic_evaluation, combinations)
 
+    activity_distance_function_index = 0
+    for activity_distance_function in activity_distance_functions:
+        results_per_activity_distance_function = list()
+        for result in results:
+            #if result[activity_distance_function_index][4] == activity_distance_function:
+            results_per_activity_distance_function.append(result[activity_distance_function_index])
+        visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w)
+        activity_distance_function_index = activity_distance_function_index + 1
 
 
 def intrinsic_evaluation(args):
-    different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function = args
+    different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list = args
     # 1: get the activities that we want to replace in each run
     activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count)
+
+    #1.1: limit the number of logs for performance
+    max_number_of_logs = 10
+    if len(activity_distance_function_list) > max_number_of_logs:
+        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, max_number_of_logs)
 
     # 2: replace activities
     logs_with_replaced_activities_dict = get_logs_with_replaced_activities_dict(
@@ -60,35 +74,41 @@ def intrinsic_evaluation(args):
     # 3: compute for all logs all activity distance matrices
     n_gram_size_bose_2009 = 3
 
-    activity_distance_matrix_dict = get_activity_distance_matrix_dict(
-        activity_distance_function, logs_with_replaced_activities_dict, n_gram_size_bose_2009
-    )
+    results_list = list()
 
-    # Clean up to save memory
-    del logs_with_replaced_activities_dict
-    gc.collect()
+    for activity_distance_function in activity_distance_function_list:
+        activity_distance_function = [activity_distance_function]
+        activity_distance_matrix_dict = get_activity_distance_matrix_dict(
+            activity_distance_function, logs_with_replaced_activities_dict, n_gram_size_bose_2009
+        )
+
+        # Clean up to save memory
+        #del logs_with_replaced_activities_dict
+        #gc.collect()
 
 
-    if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
-        reverse=True #high values = high similarity
-    else:
-        reverse=False #high values = high distances
+        if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
+            reverse=True #high values = high similarity
+        else:
+            reverse=False #high values = high distances
 
-    # 4: evaluation of all activity distance matrices
-    w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, activities_to_replace_with_count-1)
-    precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
-    print(precision_at_w_minus_1_dict)
-    precision_at_w_minus_1 = precision_at_w_minus_1_dict[activity_distance_function[0]]
+        # 4: evaluation of all activity distance matrices
+        w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, activities_to_replace_with_count-1)
+        precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
+        print(precision_at_w_minus_1_dict)
+        precision_at_w_minus_1 = precision_at_w_minus_1_dict[activity_distance_function[0]]
 
-    one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
-    precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
-    precision_at_1 = precision_at_1_dict[activity_distance_function[0]]
+        one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
+        precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
+        precision_at_1 = precision_at_1_dict[activity_distance_function[0]]
+
+        results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, precision_at_w_minus_1, precision_at_1))
 
     #precision = precision_at_k_dict["De Koninck 2018 act2vec"]
 
-    return different_activities_to_replace_count, activities_to_replace_with_count, precision_at_w_minus_1, precision_at_1
+    return results_list
 
-def visualization_intrinsic_evaluation(results, activity_distance_function, log_name):
+def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w):
     # Create DataFrame from results
     df = pd.DataFrame(results, columns=['r', 'w', 'precision@w-1', 'precision@1'])
 
@@ -102,7 +122,7 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     ax.invert_yaxis()
     ax.set_title("precision@w-1 for " + log_name + "\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
-    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + ".pdf", format="pdf", transparent=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + ".pdf", format="pdf", transparent=True)
     plt.show()
     #heat map precision@1
     result = df.pivot(index='w', columns='r', values='precision@1')
@@ -114,7 +134,7 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     ax.invert_yaxis()
     ax.set_title("precision@1 for " + log_name + "\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
-    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + ".pdf", format="pdf", transparent=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + ".pdf", format="pdf", transparent=True)
     plt.show()
 
 
