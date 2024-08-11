@@ -44,10 +44,9 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
             for activities_to_replace_with_count in range(2, w+1)
         ]
 
-
+        # limit used cores, for system responsiveness
         total_cores = multiprocessing.cpu_count()
 
-        # Limit to half the available cores, for example
         # Calculate 75% of the available cores
         cores_to_use = int(total_cores * 0.75)
 
@@ -73,7 +72,7 @@ def intrinsic_evaluation(args):
     activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count)
 
     #1.1: limit the number of logs for performance
-    max_number_of_logs = 10
+    max_number_of_logs = 1
     if len(activity_distance_function_list) > max_number_of_logs:
         activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, max_number_of_logs)
 

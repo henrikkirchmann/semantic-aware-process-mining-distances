@@ -1,8 +1,7 @@
 import itertools
-import random
 from collections import defaultdict
-from copy import deepcopy
 from typing import List
+
 
 def get_log_control_flow_perspective(log):
     log_list = list()
@@ -25,7 +24,7 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                                            different_activities_to_replace_count, activities_to_replace_with_count):
     logs_with_replaced_activities_dict = dict()
     for activities_to_replace_tuple in activities_to_replace_in_each_run_list:
-        #log_with_replaced_activities = deepcopy(log_control_flow_perspective)
+        # log_with_replaced_activities = deepcopy(log_control_flow_perspective)
         replacing_activities_dict = dict()
         for activity in activities_to_replace_tuple:
             replacing_activities_dict[activity] = set(range(activities_to_replace_with_count))
@@ -42,19 +41,22 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                     if activities_to_replace_with[activity_index] is None:
                         if len(replacing_activities_dict[activity]) == 0:
                             replacing_activities_dict[activity] = set(range(activities_to_replace_with_count))
-                        activities_to_replace_with[activity_index] = activity + ':' + str(replacing_activities_dict[activity].pop())
+                        activities_to_replace_with[activity_index] = activity + ':' + str(
+                            replacing_activities_dict[activity].pop())
                     trace_with_replaced_activities[i] = activities_to_replace_with[activity_index]
                 i += 1
             log_with_replaced_activities.append(trace_with_replaced_activities)
         logs_with_replaced_activities_dict[activities_to_replace_tuple] = log_with_replaced_activities
     return logs_with_replaced_activities_dict
 
-def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activities, activities_to_replace_with_count, reverse):
+
+def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activities, activities_to_replace_with_count,
+                            reverse):
     neighbors = dict()
     for replaced_activity in replaced_activities:
         for i in range(activities_to_replace_with_count):
             replaced_activity_i = replaced_activity + ':' + str(i)
-            #if replaced_activity_i == "Release E:1":
+            # if replaced_activity_i == "Release E:1":
             #    print("a")
             # Collect all similarity scores for the current replaced_activity
             distances = []
@@ -68,7 +70,6 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
                 # Sort distances by the similarity score (distance)
                 distances.sort(key=lambda x: x[1], reverse=reverse)
 
-
                 # Get the top n nearest neighbors
                 nearest_neighbors = [activity for activity, _ in distances[:n]]
 
@@ -77,17 +78,20 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
 
     return neighbors
 
+
 def get_knn_dict(activity_distance_matrix_dict,
-                            activities_to_replace_with_count, reverse, knn_count):
+                 activities_to_replace_with_count, reverse, knn_count):
     knn_dict = defaultdict(lambda: defaultdict())
     for activity_distance_function in activity_distance_matrix_dict:
         for replaced_activities in activity_distance_matrix_dict[activity_distance_function].keys():
-            nearest_neighbors = get_n_nearest_neighbors(knn_count , replaced_activities,
+            nearest_neighbors = get_n_nearest_neighbors(knn_count, replaced_activities,
                                                         activity_distance_matrix_dict[activity_distance_function][
-                                                            replaced_activities], activities_to_replace_with_count, reverse)
+                                                            replaced_activities], activities_to_replace_with_count,
+                                                        reverse)
 
             knn_dict[activity_distance_function][replaced_activities] = nearest_neighbors
     return dict(knn_dict)
+
 
 def get_precision_at_k(knn_dict, activity_distances):
     precision_at_k_dict = defaultdict(float)
@@ -106,6 +110,8 @@ def get_precision_at_k(knn_dict, activity_distances):
                         if a == 0:
                             print("a")
                         precision_at_k_sum += precision_sum / a
-            precision_replaced_activity_at_k += precision_at_k_sum / len(knn_dict[activity_distance][replaced_activities].keys())
-        precision_at_k_dict[activity_distance] = precision_replaced_activity_at_k / len(knn_dict[activity_distance].keys())
+            precision_replaced_activity_at_k += precision_at_k_sum / len(
+                knn_dict[activity_distance][replaced_activities].keys())
+        precision_at_k_dict[activity_distance] = precision_replaced_activity_at_k / len(
+            knn_dict[activity_distance].keys())
     return dict(precision_at_k_dict)
