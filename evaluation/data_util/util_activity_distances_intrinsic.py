@@ -12,7 +12,7 @@ def get_log_control_flow_perspective(log):
         for event in trace._list:
             trace_list.append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
             #trace_list.append(event._dict.get('concept:name'))
-        for _ in range(1, 2):
+        for _ in range(1, 1+1):
             log_list.append(copy.copy(trace_list))
     return log_list
 

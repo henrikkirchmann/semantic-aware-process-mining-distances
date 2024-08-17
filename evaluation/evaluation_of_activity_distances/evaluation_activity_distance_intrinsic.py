@@ -44,9 +44,10 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         ########################
 
         r = len(alphabet)
-        w = 6
-        sampling_size = None
+        w = 20
+        sampling_size = 1
 
+        ''' 
         if unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w):
             #set sampling size to high as possible, but enough room for not too much ram consumption take
             step_size = 1
@@ -62,7 +63,8 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
                     break
 
         print(sampling_size)
-        sampling_size = None
+        #sampling_size = None
+        '''
 
 
         combinations = [
@@ -76,7 +78,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         total_cores = multiprocessing.cpu_count()
 
         # Calculate 75% of the available cores
-        cores_to_use = int(total_cores * 0.75)
+        cores_to_use = int(total_cores * 0.4)
 
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
@@ -90,7 +92,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         for result in results:
             #if result[activity_distance_function_index][4] == activity_distance_function:
             results_per_activity_distance_function.append(result[activity_distance_function_index])
-        visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w)
+        visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w, sampling_size)
         activity_distance_function_index = activity_distance_function_index + 1
 
 
@@ -107,9 +109,8 @@ def intrinsic_evaluation(args):
 
     print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
     #1.1: limit the number of logs for performance
-    #max_number_of_logs = 15
-    #if len(activities_to_replace_in_each_run_list) > sampling_size:
-    #    activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
+    if len(activities_to_replace_in_each_run_list) >= sampling_size:
+        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
     results_list = list()
 
     for activity_distance_function in activity_distance_function_list:
@@ -166,7 +167,7 @@ def intrinsic_evaluation(args):
     print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
     return results_list
 
-def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w):
+def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w, sampling_size):
     # Create DataFrame from results
     df = pd.DataFrame(results, columns=['r', 'w', 'precision@w-1', 'precision@1'])
 
@@ -174,25 +175,25 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     result = df.pivot(index='w', columns='r', values='precision@w-1')
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(11, 15))
+    f, ax = plt.subplots(figsize=(17, 17))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
-    ax.set_title("precision@w-1 for " + log_name + "\n" +activity_distance_function, pad=20)
+    ax.set_title("precision@w-1 for " + log_name + " with max sampling size " + str(sampling_size) +"\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
-    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + ".pdf", format="pdf", transparent=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
     plt.show()
     #heat map precision@1
     result = df.pivot(index='w', columns='r', values='precision@1')
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(11, 15))
+    f, ax = plt.subplots(figsize=(17, 17))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
-    ax.set_title("precision@1 for " + log_name + "\n" +activity_distance_function, pad=20)
+    ax.set_title("precision@1 for " + log_name + " with max sampling size " + str(sampling_size) + "\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
-    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + ".pdf", format="pdf", transparent=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
     plt.show()
 
 
