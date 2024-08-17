@@ -1,18 +1,19 @@
 import itertools
 from collections import defaultdict
 from typing import List
+import gc
+import copy
 
 
 def get_log_control_flow_perspective(log):
     log_list = list()
     for trace in log:
-        log_list.append(list())
-    i = 0
-    for trace in log:
+        trace_list = list()
         for event in trace._list:
-            # log_list[i].append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
-            log_list[i].append(event._dict.get('concept:name'))
-        i += 1
+            trace_list.append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
+            #trace_list.append(event._dict.get('concept:name'))
+        for _ in range(1, 2):
+            log_list.append(copy.copy(trace_list))
     return log_list
 
 
@@ -36,7 +37,7 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
             trace_with_replaced_activities = []
             for activity in trace:
                 trace_with_replaced_activities.append(activity)
-                if activity in activities_to_replace_tuple:
+                if activity in replacing_activities_dict:
                     activity_index = activities_to_replace_tuple.index(activity)
                     if activities_to_replace_with[activity_index] is None:
                         if len(replacing_activities_dict[activity]) == 0:

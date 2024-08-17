@@ -1,5 +1,6 @@
 import gc
 import multiprocessing
+import sys
 from multiprocessing import Pool
 from pathlib import Path
 import random
@@ -11,8 +12,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from definitions import ROOT_DIR
+import time
 
-from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict
+
+
+from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict, get_log_control_flow_perspective_with_short_activity_names, get_obj_size, unresponsiveness_prediction
 
 from evaluation.data_util.util_activity_distances_intrinsic import (
     get_log_control_flow_perspective, get_activities_to_replace,
@@ -20,13 +24,18 @@ from evaluation.data_util.util_activity_distances_intrinsic import (
     get_knn_dict, get_precision_at_k
 )
 
+
 def evaluate_intrinsic(activity_distance_functions, log_list):
     for log_name in log_list:
         log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes')
         #pm4py.view_process_tree(pm4py.discover_process_tree_inductive(log))
         log_control_flow_perspective = get_log_control_flow_perspective(log)
         alphabet = get_alphabet(log_control_flow_perspective)
-
+        #print(get_obj_size(log_control_flow_perspective))
+        log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(log_control_flow_perspective, alphabet)
+        print(get_obj_size(log_control_flow_perspective))
+        #active
+        alphabet = get_alphabet(log_control_flow_perspective)
         #for activity_distance_function in activity_distance_functions:
 
         ########################
@@ -35,11 +44,28 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
 
         r = len(alphabet)
         w = 20
+        sampling_size = None
+
+        if unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w):
+            #set sampling size to high as possible, but enough room for not too much ram consumption take
+            step_size = 1
+            max_value = 100000
+            for sampling_size_test in range(1, max_value + 1, step_size):
+                if not unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w,
+                                                sampling_size_test):
+                    sampling_size = sampling_size_test
+                else:
+                    if sampling_size is None:
+                        sampling_size = 1
+                        print("System might run out of memory.")
+                    break
+
+        print(sampling_size)
 
 
         combinations = [
             (
-            different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_functions)
+            different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_functions, sampling_size)
             for different_activities_to_replace_count in range(1, r+1)
             for activities_to_replace_with_count in range(2, w+1)
         ]
@@ -67,21 +93,25 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
 
 
 def intrinsic_evaluation(args):
-    different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list = args
+    different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list, sampling_size = args
     # 1: get the activities that we want to replace in each run
     activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count)
-
+    #print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
     #1.1: limit the number of logs for performance
-    max_number_of_logs = 1
-    if len(activity_distance_function_list) > max_number_of_logs:
-        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, max_number_of_logs)
+    #max_number_of_logs = 15
+    if len(activities_to_replace_in_each_run_list) > sampling_size:
+        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
 
     # 2: replace activities
+    start_time = time.time()
     logs_with_replaced_activities_dict = get_logs_with_replaced_activities_dict(
         activities_to_replace_in_each_run_list, log_control_flow_perspective,
         different_activities_to_replace_count, activities_to_replace_with_count
     )
-
+    del logs_with_replaced_activities_dict
+    gc.collect()
+    #print(str((time.time() - start_time)) +" seconds ---" + " r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
+    #return list()
     # 3: compute for all logs all activity distance matrices
     n_gram_size_bose_2009 = 3
 
@@ -116,6 +146,8 @@ def intrinsic_evaluation(args):
         results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, precision_at_w_minus_1, precision_at_1))
 
     #precision = precision_at_k_dict["De Koninck 2018 act2vec"]
+    print("end ---- r:" + str(different_activities_to_replace_count + " w: "+str(activities_to_replace_with_count)))
+
 
     return results_list
 
@@ -153,6 +185,8 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
 
 if __name__ == '__main__':
 
+
+
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
@@ -164,8 +198,9 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    #log_list.append("Sepsis")
     log_list.append("repairExample")
+    #log_list.append("Sepsis")
+    #log_list.append("Road_Traffic_Fine_Management_Process")
     ##############################################################################
 
     ##############################################################################
@@ -177,7 +212,6 @@ if __name__ == '__main__':
 
 
     evaluate_intrinsic(activity_distance_functions, log_list)
-
 
 
 
