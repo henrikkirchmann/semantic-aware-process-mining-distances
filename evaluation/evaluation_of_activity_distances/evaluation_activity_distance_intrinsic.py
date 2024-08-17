@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 from definitions import ROOT_DIR
 import time
+import psutil
 
 
 
@@ -43,7 +44,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         ########################
 
         r = len(alphabet)
-        w = 20
+        w = 6
         sampling_size = None
 
         if unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w):
@@ -61,6 +62,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
                     break
 
         print(sampling_size)
+        sampling_size = None
 
 
         combinations = [
@@ -96,59 +98,72 @@ def intrinsic_evaluation(args):
     different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list, sampling_size = args
     # 1: get the activities that we want to replace in each run
     activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count)
-    #print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
+    memory_info = psutil.virtual_memory()
+    #memory_info.total >> 30
+    # Get the amount of free memory
+    free_memory = memory_info.free
+    free_memory = free_memory / (1024.0 ** 3)
+
+
+    print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
     #1.1: limit the number of logs for performance
     #max_number_of_logs = 15
-    if len(activities_to_replace_in_each_run_list) > sampling_size:
-        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
-
-    # 2: replace activities
-    start_time = time.time()
-    logs_with_replaced_activities_dict = get_logs_with_replaced_activities_dict(
-        activities_to_replace_in_each_run_list, log_control_flow_perspective,
-        different_activities_to_replace_count, activities_to_replace_with_count
-    )
-    del logs_with_replaced_activities_dict
-    gc.collect()
-    #print(str((time.time() - start_time)) +" seconds ---" + " r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
-    #return list()
-    # 3: compute for all logs all activity distance matrices
-    n_gram_size_bose_2009 = 3
-
+    #if len(activities_to_replace_in_each_run_list) > sampling_size:
+    #    activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
     results_list = list()
 
     for activity_distance_function in activity_distance_function_list:
         activity_distance_function = [activity_distance_function]
-        activity_distance_matrix_dict = get_activity_distance_matrix_dict(
-            activity_distance_function, logs_with_replaced_activities_dict, n_gram_size_bose_2009
-        )
+        precision_at_w_minus_1_list = list()
+        precision_at_1_list = list()
+        for activities_to_replace in activities_to_replace_in_each_run_list:
+            # 2: replace activities
+            logs_with_replaced_activities_dict = get_logs_with_replaced_activities_dict(
+                [activities_to_replace], log_control_flow_perspective,
+                different_activities_to_replace_count, activities_to_replace_with_count
+            )
+            #del logs_with_replaced_activities_dict
+            #gc.collect()
+            #print(str((time.time() - start_time)) +" seconds ---" + " r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
+            #return list()
+            # 3: compute for all logs all activity distance matrices
+            n_gram_size_bose_2009 = 3
 
-        # Clean up to save memory
-        #del logs_with_replaced_activities_dict
-        #gc.collect()
+            activity_distance_matrix_dict = get_activity_distance_matrix_dict(
+                activity_distance_function, logs_with_replaced_activities_dict, n_gram_size_bose_2009
+            )
+
+            # Clean up to save memory
+            #del logs_with_replaced_activities_dict
+            #gc.collect()
 
 
-        if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
-            reverse=True #high values = high similarity
-        else:
-            reverse=False #high values = high distances
+            if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
+                reverse=True #high values = high similarity
+            else:
+                reverse=False #high values = high distances
 
-        # 4: evaluation of all activity distance matrices
-        w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, activities_to_replace_with_count-1)
-        precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
-        print(precision_at_w_minus_1_dict)
-        precision_at_w_minus_1 = precision_at_w_minus_1_dict[activity_distance_function[0]]
+            # 4: evaluation of all activity distance matrices
+            w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, activities_to_replace_with_count-1)
+            precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
+            #(precision_at_w_minus_1_dict)
+            precision_at_w_minus_1_list.append(precision_at_w_minus_1_dict[activity_distance_function[0]])
 
-        one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
-        precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
-        precision_at_1 = precision_at_1_dict[activity_distance_function[0]]
-
+            one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
+            precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
+            precision_at_1_list.append(precision_at_1_dict[activity_distance_function[0]])
+        precision_at_w_minus_1 = sum(precision_at_w_minus_1_list)/len(precision_at_w_minus_1_list)
+        precision_at_1 = sum(precision_at_1_list)/len(precision_at_1_list)
         results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, precision_at_w_minus_1, precision_at_1))
 
     #precision = precision_at_k_dict["De Koninck 2018 act2vec"]
-    print("end ---- r:" + str(different_activities_to_replace_count + " w: "+str(activities_to_replace_with_count)))
+    memory_info = psutil.virtual_memory()
+    #memory_info.total >> 30 #covert to GigaByte
+    # Get the amount of free memory
+    free_memory = memory_info.free
+    free_memory = free_memory / (1024.0 ** 3)
 
-
+    print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
     return results_list
 
 def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w):
