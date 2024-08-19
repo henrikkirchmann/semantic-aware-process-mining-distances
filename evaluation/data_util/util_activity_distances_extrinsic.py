@@ -8,7 +8,7 @@ from evaluation.data_util.util_activity_distances_intrinsic import get_log_contr
 
 
 def get_sublog_list(folder):
-    i = 0
+    #i = 0
     sublog_list = list()
     for sublog_name in os.listdir(ROOT_DIR + '/event_logs/' + folder):
         sublog = xes_importer.apply(ROOT_DIR + '/event_logs/' + folder + "/" + sublog_name)
@@ -16,9 +16,9 @@ def get_sublog_list(folder):
         # pm4py.view_process_tree(pt)
         sublog_control_flow_perspective = get_log_control_flow_perspective(sublog)
         sublog_list.append(sublog_control_flow_perspective)
-        i += 1
-        if i == 10:
-            break
+        #i += 1
+        #if i == 10:
+         #   break
     return sublog_list
 
 

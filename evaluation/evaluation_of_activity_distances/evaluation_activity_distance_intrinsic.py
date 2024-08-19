@@ -4,6 +4,7 @@ import sys
 from multiprocessing import Pool
 from pathlib import Path
 import random
+import tracemalloc
 import pm4py
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.statistics.variants.log import get as variants_module
@@ -14,7 +15,9 @@ from matplotlib import rc
 from definitions import ROOT_DIR
 import time
 import psutil
-
+from os import kill
+from os import getpid
+from signal import SIGKILL
 
 
 from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict, get_log_control_flow_perspective_with_short_activity_names, get_obj_size, unresponsiveness_prediction
@@ -25,27 +28,38 @@ from evaluation.data_util.util_activity_distances_intrinsic import (
     get_knn_dict, get_precision_at_k
 )
 
+from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_list
+
 
 def evaluate_intrinsic(activity_distance_functions, log_list):
     for log_name in log_list:
-        log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes')
-        #pm4py.view_process_tree(pm4py.discover_process_tree_inductive(log))
-        log_control_flow_perspective = get_log_control_flow_perspective(log)
+        if log_name[:4] == "bpic" or log_name[:3] == "pdc":
+            sublog_list = get_sublog_list(log_name)
+
+            log_control_flow_perspective = [inner for outer in sublog_list for inner in outer]
+        else:
+            log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes')
+            #pm4py.view_process_tree(pm4py.discover_process_tree_inductive(log))
+            log_control_flow_perspective = get_log_control_flow_perspective(log)
+            #print(get_obj_size(log_control_flow_perspective))
         alphabet = get_alphabet(log_control_flow_perspective)
-        #print(get_obj_size(log_control_flow_perspective))
-        log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(log_control_flow_perspective, alphabet)
+        log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(
+            log_control_flow_perspective, alphabet)
         print(get_obj_size(log_control_flow_perspective))
+
+
         #active
         alphabet = get_alphabet(log_control_flow_perspective)
+        #del log
         #for activity_distance_function in activity_distance_functions:
 
         ########################
         # Intrinsic evaluation #
         ########################
 
-        r = len(alphabet)
+        r = min(100,len(alphabet))
         w = 20
-        sampling_size = 1
+        sampling_size = 100
 
         ''' 
         if unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w):
@@ -73,45 +87,67 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
             for different_activities_to_replace_count in range(1, r+1)
             for activities_to_replace_with_count in range(2, w+1)
         ]
-
+        print(get_obj_size(combinations))
         # limit used cores, for system responsiveness
         total_cores = multiprocessing.cpu_count()
 
         # Calculate 75% of the available cores
-        cores_to_use = int(total_cores * 0.4)
+        cores_to_use = int(total_cores * 0.75)
 
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
 
+
         with Pool(processes=cores_to_use) as pool:
             results = pool.map(intrinsic_evaluation, combinations)
 
-    activity_distance_function_index = 0
-    for activity_distance_function in activity_distance_functions:
-        results_per_activity_distance_function = list()
-        for result in results:
-            #if result[activity_distance_function_index][4] == activity_distance_function:
-            results_per_activity_distance_function.append(result[activity_distance_function_index])
-        visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w, sampling_size)
-        activity_distance_function_index = activity_distance_function_index + 1
+
+        print("------------------done")
+        #return
+        # Further memory cleanup after processing
+        #del log_control_flow_perspective, combinations, alphabet, results
+        #gc.collect()        #pool.close()
+        #pool.join()
+        #memory_info = psutil.virtual_memory()
+        # memory_info.total >> 30
+        # Get the amount of free memory
+        #free_memory = memory_info.free
+        #free_memory = free_memory / (1024.0 ** 3)
+        #print(free_memory)
+        output_file = ROOT_DIR + "/results/activity_distances/intrinsic/"+str(log_name) +"_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".txt"
+
+        activity_distance_function_index = 0
+        for activity_distance_function in activity_distance_functions:
+            results_per_activity_distance_function = list()
+            for result in results:
+                #if result[activity_distance_function_index][4] == activity_distance_function:
+                results_per_activity_distance_function.append(result[activity_distance_function_index])
+            visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w, sampling_size, output_file)
+            activity_distance_function_index = activity_distance_function_index + 1
 
 
 def intrinsic_evaluation(args):
+    #tracemalloc.start()
     different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list, sampling_size = args
     # 1: get the activities that we want to replace in each run
-    activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count)
-    memory_info = psutil.virtual_memory()
+    activities_to_replace_in_each_run_list = get_activities_to_replace(alphabet, different_activities_to_replace_count, sampling_size)
+    #memory_info = psutil.virtual_memory()
     #memory_info.total >> 30
     # Get the amount of free memory
-    free_memory = memory_info.free
-    free_memory = free_memory / (1024.0 ** 3)
+    #free_memory = memory_info.free
+    #free_memory = free_memory / (1024.0 ** 3)
+
+    #del activities_to_replace_in_each_run_list, different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective, alphabet, activity_distance_function_list, sampling_size
 
 
-    print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
+    print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) )
+          #+ "free memory:" + str(free_memory))
     #1.1: limit the number of logs for performance
-    if len(activities_to_replace_in_each_run_list) >= sampling_size:
-        activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
+    #if len(activities_to_replace_in_each_run_list) >= sampling_size:
+    #    activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
     results_list = list()
+
+
 
     for activity_distance_function in activity_distance_function_list:
         activity_distance_function = [activity_distance_function]
@@ -158,40 +194,62 @@ def intrinsic_evaluation(args):
         results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, precision_at_w_minus_1, precision_at_1))
 
     #precision = precision_at_k_dict["De Koninck 2018 act2vec"]
-    memory_info = psutil.virtual_memory()
+
+    #memory_info = psutil.virtual_memory()
     #memory_info.total >> 30 #covert to GigaByte
     # Get the amount of free memory
-    free_memory = memory_info.free
-    free_memory = free_memory / (1024.0 ** 3)
+    #free_memory = memory_info.free
+    #free_memory = free_memory / (1024.0 ** 3)
 
-    print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + "free memory:" + str(free_memory))
+    #results_list = list()
+    print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
+    #snapshot = tracemalloc.take_snapshot()
+    #top_stats = snapshot.statistics('lineno')
+
+    #print("[Top 10 memory-consuming lines]")
+    #results_list = list()
+    #for stat in top_stats[:10]:
+    #    print(stat)
+    #tracemalloc.stop()
     return results_list
 
-def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w, sampling_size):
+def visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w, sampling_size, output_file):
     # Create DataFrame from results
     df = pd.DataFrame(results, columns=['r', 'w', 'precision@w-1', 'precision@1'])
 
     #heat map precision@w-1
     result = df.pivot(index='w', columns='r', values='precision@w-1')
+
+    average_value = result.values.mean()
+    print("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function)
+    with open(output_file, "a") as file:
+        file.write("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function + "\n")
+        file.write("\n")
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(17, 17))
+    f, ax = plt.subplots(figsize=(17, 17 + 17*int(r/17)))
     cmap = sns.cm.rocket_r
-    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
+    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
     ax.invert_yaxis()
     ax.set_title("precision@w-1 for " + log_name + " with max sampling size " + str(sampling_size) +"\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
     plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
     plt.show()
+
     #heat map precision@1
     result = df.pivot(index='w', columns='r', values='precision@1')
+    average_value = result.values.mean()
+    print("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
+    with open(output_file, "a") as file:
+        file.write("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function + "\n")
+        file.write("\n")
     # Plotting
     rc('font', **{'family': 'serif', 'size': 20})
     f, ax = plt.subplots(figsize=(17, 17))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
     ax.invert_yaxis()
-    ax.set_title("precision@1 for " + log_name + " with max sampling size " + str(sampling_size) + "\n" +activity_distance_function, pad=20)
+    ax.set_title("Nearest Neighbor for " + log_name + " with max sampling size " + str(sampling_size) + "\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
     plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
     plt.show()
@@ -214,9 +272,12 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    log_list.append("repairExample")
+    #log_list.append("repairExample")
+    #log_list.append("BPIC15_1")
     #log_list.append("Sepsis")
     #log_list.append("Road_Traffic_Fine_Management_Process")
+    #log_list.append("bpic_2015")
+    log_list.append("pdc_2019")
     ##############################################################################
 
     ##############################################################################

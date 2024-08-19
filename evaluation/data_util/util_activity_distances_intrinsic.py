@@ -3,6 +3,9 @@ from collections import defaultdict
 from typing import List
 import gc
 import copy
+import random
+import math
+from evaluation.data_util.util_activity_distances import get_obj_size
 
 
 def get_log_control_flow_perspective(log):
@@ -10,15 +13,42 @@ def get_log_control_flow_perspective(log):
     for trace in log:
         trace_list = list()
         for event in trace._list:
-            trace_list.append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
-            #trace_list.append(event._dict.get('concept:name'))
+            #trace_list.append(event._dict.get('concept:name')+"-"+event._dict.get('lifecycle:transition'))
+            trace_list.append(event._dict.get('concept:name'))
         for _ in range(1, 1+1):
             log_list.append(copy.copy(trace_list))
     return log_list
 
+def reservoir_sampling(iterator, sample_size):
+    """Perform reservoir sampling from the given iterator."""
+    reservoir = []
+    for index, item in enumerate(iterator):
+        if len(reservoir) < sample_size:
+            reservoir.append(item)
+        else:
+            # Randomly replace elements in the reservoir with decreasing probability
+            replace_index = random.randint(0, index)
+            if replace_index < sample_size:
+                reservoir[replace_index] = item
+    return reservoir
 
-def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int):
-    return list(itertools.combinations(alphabet, different_activities_to_replace_count))
+
+def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int, sample_size: int):
+    alphabet_len = len(alphabet)
+    alphabet_len_minus_one = alphabet_len -1
+    sampled_combinations = set()
+    comb_number = math.comb(alphabet_len, different_activities_to_replace_count)
+    while len(sampled_combinations) < sample_size and len(sampled_combinations) < comb_number:
+        activity_index_set = set()
+        while len(activity_index_set) < different_activities_to_replace_count:
+            activity_index_set.add(random.randint(0, alphabet_len_minus_one))
+        activity_index_list = list(activity_index_set)
+        activity_index_list.sort()
+        acitvity_list = list()
+        for index in activity_index_list:
+            acitvity_list.append(alphabet[index])
+        sampled_combinations.add(tuple(acitvity_list))
+    return sampled_combinations
 
 
 def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_list, log_control_flow_perspective,
@@ -48,6 +78,7 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                 i += 1
             log_with_replaced_activities.append(trace_with_replaced_activities)
         logs_with_replaced_activities_dict[activities_to_replace_tuple] = log_with_replaced_activities
+        #del
     return logs_with_replaced_activities_dict
 
 
