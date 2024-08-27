@@ -27,7 +27,7 @@ def compute_levenshtein_distance(trace1, trace2, substitution_scores):
                 )
 
     # Return the edit distance between the strings
-    return dp[m][n]
+    return dp[m][n] / max(m,n)
 
 
 def get_levenshtein_distance(trace1, trace2, substitution_scores):

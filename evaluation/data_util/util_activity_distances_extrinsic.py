@@ -1,4 +1,5 @@
 import os
+import random
 
 from pm4py.objects.log.importer.xes import importer as xes_importer
 
@@ -72,7 +73,16 @@ def get_precision_values(trace_distance_list, trace, sublogsize_list):
             same_sub_log_traces_count += 1
     precision_at_k = same_sub_log_traces_count / k
 
-    return precision_at_1, precision_at_k
+    k = 10
+    # precision_at_k
+    same_sub_log_traces_count = 0
+    for trace_tuple in trace_distance_list[:k]:
+        if trace_tuple[2] == trace[1]:
+            same_sub_log_traces_count += 1
+    precision_at_10 = same_sub_log_traces_count / k
+
+
+    return precision_at_1, precision_at_k, precision_at_10
 
 
 def print_avg_values(results, activity_distance_functions):
@@ -80,10 +90,31 @@ def print_avg_values(results, activity_distance_functions):
         print(activity_distance_function)
         nn_for_activity_distance_function_list = list()
         pre_for_activity_distance_function_list = list()
+        pre10_for_activity_distance_function_list = list()
         for result in results:
             if result[0] == activity_distance_function:
                 nn_for_activity_distance_function_list.append(result[1])
                 pre_for_activity_distance_function_list.append(result[2])
+                pre10_for_activity_distance_function_list.append(result[3])
         print(" NN: " + str(
-            sum(nn_for_activity_distance_function_list) / len(nn_for_activity_distance_function_list)) + " Pre: " + str(
+            sum(nn_for_activity_distance_function_list) / len(nn_for_activity_distance_function_list)) + " Pre10: " + str(
+            sum(pre10_for_activity_distance_function_list) / len(pre10_for_activity_distance_function_list)) + " Pre: " + str(
             sum(pre_for_activity_distance_function_list) / len(pre_for_activity_distance_function_list)))
+
+
+def get_sampled_sublogs(list_of_lists, percentage):
+    sampled_lists = []
+
+    for lst in list_of_lists:
+        # Calculate % of the length of the list
+        one_percent = max(int(len(lst) * percentage), 10)
+
+        # Randomly sample 1% or at least 10 elements from the list
+        if len(lst) >= one_percent:
+            sampled = random.sample(lst, one_percent)
+        else:
+            sampled = random.sample(lst, len(lst))
+
+        sampled_lists.append(sampled)
+
+    return sampled_lists

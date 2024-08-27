@@ -145,5 +145,26 @@ def unresponsiveness_prediction(log_size, alphabet_size, r, w, sampling_size=Non
         return False
 
 
+def print_log_stats(log, alphabet):
+    print("Alphabet Size: " + str(len(alphabet)))
+    print("Number of Traces: " + str(len(log)))
+
+    # Convert each list to a tuple and then use a set to find unique tuples
+    trace_variants = set(tuple(trace) for trace in log)
+
+    # Get the number of unique lists
+    print("Number of Trace Variants: " + str(len(trace_variants)))
+
+    # Get the lengths of all lists
+    lengths = [len(trace) for trace in log]
+
+    # Calculate min, max, and average length
+    min_length = min(lengths)
+    max_length = max(lengths)
+    avg_length = sum(lengths) / len(lengths)
+
+    print("Trace Length Min: " + str(min_length))
+    print("Trace Length Avg: " + str(avg_length))
+    print("Trace Length Max: " + str(max_length))
 
 

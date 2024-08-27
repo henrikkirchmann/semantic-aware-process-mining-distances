@@ -31,7 +31,8 @@ from evaluation.data_util.util_activity_distances_intrinsic import (
 from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_list
 
 
-def evaluate_intrinsic(activity_distance_functions, log_list):
+def evaluate_intrinsic(activity_distance_functions, log_list, w, sampling_size):
+
     for log_name in log_list:
         if log_name[:4] == "bpic" or log_name[:3] == "pdc":
             sublog_list = get_sublog_list(log_name)
@@ -43,13 +44,17 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
             log_control_flow_perspective = get_log_control_flow_perspective(log)
             #print(get_obj_size(log_control_flow_perspective))
         alphabet = get_alphabet(log_control_flow_perspective)
-        log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(
-            log_control_flow_perspective, alphabet)
+        #log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(
+            #log_control_flow_perspective, alphabet)
         print(get_obj_size(log_control_flow_perspective))
 
 
         #active
         alphabet = get_alphabet(log_control_flow_perspective)
+        r = min(100,len(alphabet))
+        #w = 10
+        #sampling_size = 1
+        #print(sampling_size)
         #del log
         #for activity_distance_function in activity_distance_functions:
 
@@ -57,9 +62,6 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
         # Intrinsic evaluation #
         ########################
 
-        r = min(100,len(alphabet))
-        w = 20
-        sampling_size = 100
 
         ''' 
         if unresponsiveness_prediction(get_obj_size(log_control_flow_perspective), len(alphabet), r, w):
@@ -123,6 +125,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list):
                 #if result[activity_distance_function_index][4] == activity_distance_function:
                 results_per_activity_distance_function.append(result[activity_distance_function_index])
             visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w, sampling_size, output_file)
+            load_visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function, log_name, r, w, sampling_size, output_file)
             activity_distance_function_index = activity_distance_function_index + 1
 
 
@@ -143,8 +146,10 @@ def intrinsic_evaluation(args):
     print("start ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) )
           #+ "free memory:" + str(free_memory))
     #1.1: limit the number of logs for performance
-    #if len(activities_to_replace_in_each_run_list) >= sampling_size:
-    #    activities_to_replace_in_each_run_list = random.sample(activities_to_replace_in_each_run_list, sampling_size)
+    if len(activities_to_replace_in_each_run_list) >= sampling_size:
+        #print(activities_to_replace_in_each_run_list)
+        activities_to_replace_in_each_run_list = random.sample(list(activities_to_replace_in_each_run_list), sampling_size)
+        set(activities_to_replace_in_each_run_list)
     results_list = list()
 
 
@@ -202,7 +207,7 @@ def intrinsic_evaluation(args):
     #free_memory = free_memory / (1024.0 ** 3)
 
     #results_list = list()
-    print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count))
+    print("end ---- r:" + str(different_activities_to_replace_count) + " w: "+str(activities_to_replace_with_count) + " sampling size: " + str(sampling_size))
     #snapshot = tracemalloc.take_snapshot()
     #top_stats = snapshot.statistics('lineno')
 
@@ -217,6 +222,16 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
     # Create DataFrame from results
     df = pd.DataFrame(results, columns=['r', 'w', 'precision@w-1', 'precision@1'])
 
+    # Generate the file name incorporating all function arguments if no output_file is provided
+    csv = f"{log_name}_distfunc_{activity_distance_function}_r{r}_w{w}_samplesize_{sampling_size}.csv"
+
+    # Ensure that the file name is valid and does not contain invalid characters (especially for file systems)
+    csv = csv.replace("/", "_").replace("\\", "_")
+
+    # Save the DataFrame to a CSV file
+    df.to_csv(csv, index=False)
+
+    ''' 
     #heat map precision@w-1
     result = df.pivot(index='w', columns='r', values='precision@w-1')
 
@@ -226,8 +241,8 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
         file.write("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function + "\n")
         file.write("\n")
     # Plotting
-    rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(17, 17 + 17*int(r/17)))
+    rc('font', **{'family': 'serif', 'size': 20*3.5})
+    f, ax = plt.subplots(figsize=(17 + 17*int(r/17), 20))
     cmap = sns.cm.rocket_r
     ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
     ax.invert_yaxis()
@@ -244,10 +259,54 @@ def visualization_intrinsic_evaluation(results, activity_distance_function, log_
         file.write("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function + "\n")
         file.write("\n")
     # Plotting
-    rc('font', **{'family': 'serif', 'size': 20})
-    f, ax = plt.subplots(figsize=(17, 17))
+    rc('font', **{'family': 'serif', 'size': 20*3})
+    f, ax = plt.subplots(figsize=(17+ 17*int(r/17), 20))
     cmap = sns.cm.rocket_r
-    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, annot=True, linewidth=.5)
+    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
+    ax.invert_yaxis()
+    ax.set_title("Nearest Neighbor for " + log_name + " with max sampling size " + str(sampling_size) + "\n" +activity_distance_function, pad=20)
+    Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
+    plt.show()
+    '''
+
+def load_visualization_intrinsic_evaluation(results, activity_distance_function, log_name, r, w, sampling_size, output_file):
+    # Specify the file name that was used earlier
+    file_name = "pdc_2022_distfunc_De Koninck 2018 act2vec CBOW_r17_w100_samplesize_1.csv"
+    # Load the DataFrame from the CSV file
+    df = pd.read_csv(file_name)
+
+    #heat map precision@w-1
+    result = df.pivot(index='w', columns='r', values='precision@w-1')
+
+    average_value = result.values.mean()
+    print("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function)
+    with open(output_file, "a") as file:
+        file.write("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function + "\n")
+        file.write("\n")
+    # Plotting
+    rc('font', **{'family': 'serif', 'size': 20*3.5})
+    f, ax = plt.subplots(figsize=(17 + 17*int(r/17), 20))
+    cmap = sns.cm.rocket_r
+    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
+    ax.invert_yaxis()
+    ax.set_title("precision@w-1 for " + log_name + " with max sampling size " + str(sampling_size) +"\n" +activity_distance_function, pad=20)
+    Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
+    plt.savefig(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(r) + "_w:" + str(w) + "_sampling:"+ str(sampling_size) + ".pdf", format="pdf", transparent=True)
+    plt.show()
+
+    #heat map precision@1
+    result = df.pivot(index='w', columns='r', values='precision@1')
+    average_value = result.values.mean()
+    print("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
+    with open(output_file, "a") as file:
+        file.write("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function + "\n")
+        file.write("\n")
+    # Plotting
+    rc('font', **{'family': 'serif', 'size': 20*3})
+    f, ax = plt.subplots(figsize=(17+ 17*int(r/17), 20))
+    cmap = sns.cm.rocket_r
+    ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
     ax.invert_yaxis()
     ax.set_title("Nearest Neighbor for " + log_name + " with max sampling size " + str(sampling_size) + "\n" +activity_distance_function, pad=20)
     Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
@@ -268,16 +327,32 @@ if __name__ == '__main__':
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
     #activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     ##############################################################################
-
+    w = 50
+    sampling_size = 3
+    print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
     #log_list.append("repairExample")
-    #log_list.append("BPIC15_1")
-    #log_list.append("Sepsis")
+    #log_list.append("bpic_2015")
+    log_list.append("Sepsis")
     #log_list.append("Road_Traffic_Fine_Management_Process")
     #log_list.append("bpic_2015")
-    log_list.append("pdc_2019")
+    #log_list.append("pdc_2016")
+    #log_list.append("BPIC15_1")
+    #log_list.append("pdc_2022")
+    #log_list.append("pdc_2017")
+    #log_list.append("pdc_2020")
+    #log_list.append("BPI Challenge 2017")
+
+    #log_list.append("BPI Challenge 2017")
+    #log_list.append("wabo_all")
+
+
+    print(log_list)
+
+
+    #log_list.append("2019_1")
     ##############################################################################
 
     ##############################################################################
@@ -288,7 +363,7 @@ if __name__ == '__main__':
     ##############################################################################
 
 
-    evaluate_intrinsic(activity_distance_functions, log_list)
+    evaluate_intrinsic(activity_distance_functions, log_list, w, sampling_size)
 
 
 
