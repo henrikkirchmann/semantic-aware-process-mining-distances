@@ -29,12 +29,9 @@ def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[
 
     return {k: dict(v) for k, v in context_dict.items()}  # Convert inner defaultdicts to regular dicts
 
-#log = xes_importer.apply('/Users/henrikkirchmann/Documents/I2NLP/semantic-aware-process-mining-distances/repairExample.xes')
 
 def get_substitution_and_insertion_scores(log, alphabet, ngram_size):
     log = give_log_padding(log, ngram_size)
-    #log = [['a', 'b', 'c', 'd'], ['b', 'c', 'd', 'e'], ['a', 'b', 'c'], ['a', 'd', 'c'],  ['a', 'b', 'c'], ['a', 'd', 'c']]
-    #log = [['a', 'a', 'b', 'c', 'd', 'b', 'b', 'c', 'd', 'a'], ['d', 'a', 'b', 'c', 'd', 'a', 'b', 'c', 'b', 'b'], ['b', 'b', 'b', 'c', 'd', 'b', 'b', 'b', 'c', 'c', 'a', 'a'], ['a', 'a', 'a', 'd', 'a', 'b', 'b', 'c', 'c', 'c'], ['a', 'a', 'a', 'c', 'd', 'c', 'd', 'c', 'b', 'e', 'd', 'b', 'c', 'c', 'b', 'a', 'd', 'b', 'd', 'e', 'b', 'd', 'c']]
 
     #Line 2 in Algoirthm 1 & 2
     ngrams_dict = get_ngrams_dict(log, ngram_size)

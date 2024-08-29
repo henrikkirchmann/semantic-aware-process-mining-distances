@@ -1,12 +1,14 @@
 import itertools
 from collections import defaultdict
+from pathlib import Path
 from typing import List
 import gc
 import copy
 import random
 import math
 from evaluation.data_util.util_activity_distances import get_obj_size
-
+import pandas as pd
+from definitions import ROOT_DIR
 
 def get_log_control_flow_perspective(log):
     log_list = list()
@@ -34,6 +36,8 @@ def reservoir_sampling(iterator, sample_size):
 
 
 def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int, sample_size: int):
+    if different_activities_to_replace_count == 5:
+        print("a")
     alphabet_len = len(alphabet)
     alphabet_len_minus_one = alphabet_len -1
     sampled_combinations = set()
@@ -147,3 +151,48 @@ def get_precision_at_k(knn_dict, activity_distances):
         precision_at_k_dict[activity_distance] = precision_replaced_activity_at_k / len(
             knn_dict[activity_distance].keys())
     return dict(precision_at_k_dict)
+
+
+def save_intrinsic_results(activity_distance_functions, results, log_name, r, w, sampling_size):
+    activity_distance_function_index = 0
+    for activity_distance_function in activity_distance_functions:
+        results_per_activity_distance_function = list()
+        for result in results:
+            results_per_activity_distance_function.append(result[activity_distance_function_index])
+
+        # Create DataFrame from results
+        Path(ROOT_DIR + "/results/activity_distances/intrinsic/" + log_name).mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(results_per_activity_distance_function, columns=['r', 'w', 'precision@w-1', 'precision@1'])
+
+        # Generate the file name incorporating all function arguments if no output_file is provided
+        csv = f"{log_name}_distfunc_{activity_distance_function}_r{r}_w{w}_samplesize_{sampling_size}.csv"
+
+        # Ensure that the file name is valid and does not contain invalid characters (especially for file systems)
+        csv = csv.replace("/", "_").replace("\\", "_")
+
+        # Save the DataFrame to a CSV file
+        df.to_csv(ROOT_DIR + "/results/activity_distances/intrinsic/" + log_name + "/"+ csv, index=False)
+
+        # Print average results
+        print_average_results(df, activity_distance_function)
+
+        activity_distance_function_index += 1
+
+
+       # visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
+       #                                    log_name, r, w, sampling_size, output_file)
+       # load_visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
+       #                                         log_name, r, w, sampling_size, output_file)
+       # activity_distance_function_index = activity_distance_function_index + 1
+
+def print_average_results(df, activity_distance_function):
+
+    #precision@w-1
+    result = df.pivot(index='w', columns='r', values='precision@w-1')
+    average_value = result.values.mean()
+    print("The average precision@w-1 is: " + str(average_value) + " " + activity_distance_function)
+
+    #precision@1
+    result = df.pivot(index='w', columns='r', values='precision@1')
+    average_value = result.values.mean()
+    print("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
