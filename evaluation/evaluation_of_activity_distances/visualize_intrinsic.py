@@ -63,6 +63,6 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         plt.show()
 
 if __name__ == '__main__':
-    log_name = "repairExample"
+    log_name = "Road Traffic Fine Management Process"
     visualization_intrinsic_evaluation_from_csv(log_name)
 

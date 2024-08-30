@@ -129,27 +129,27 @@ if __name__ == '__main__':
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     ##############################################################################
-    r_min = 10
-    w = 5
-    sampling_size = 5
+    r_min = 50
+    w = 20
+    sampling_size = 100
     print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    log_list.append("repairExample")
+    #log_list.append("repairExample")
     # log_list.append("bpic_2015")
     #log_list.append("Sepsis")
-    # log_list.append("Road_Traffic_Fine_Management_Process")
+    log_list.append("Road Traffic Fine Management Process")
     # log_list.append("bpic_2015")
     # log_list.append("pdc_2016")
-    # log_list.append("BPIC15_1")
+    #log_list.append("BPIC15_1")
     # log_list.append("pdc_2022")
     # log_list.append("pdc_2017")
-    # log_list.append("pdc_2020")
-    # log_list.append("BPI Challenge 2017")
+    #log_list.append("pdc_2019")
+    #log_list.append("BPI Challenge 2017")
 
     # log_list.append("BPI Challenge 2017")
-    # log_list.append("wabo_all")
+    #log_list.append("wabo_all")
 
     print(log_list)
 
