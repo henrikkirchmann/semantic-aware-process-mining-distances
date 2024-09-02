@@ -23,12 +23,15 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         r = int(parts[3][1:])  # Extract the number after 'r'
         w = int(parts[4][1:])  # Extract the number after 'w'
         sampling_size = int(parts[6])  # Extract the number after 'samplesize'
+        print(f"r: {r}, w: {w}, sampling_size: {sampling_size}")
 
         # Load the DataFrame from the CSV file
         df = pd.read_csv(ROOT_DIR + '/results/activity_distances/intrinsic/' + log_name + "/" + file)
 
         # heat map precision@w-1
         result = df.pivot(index='w', columns='r', values='precision@w-1')
+        average_value = result.values.mean()
+        print("Average precision@w-1 is: " + str(average_value) + " " + activity_distance_function)
 
         # Plotting
         rc('font', **{'family': 'serif', 'size': 20 * 3.5})
@@ -47,7 +50,7 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         # heat map precision@1
         result = df.pivot(index='w', columns='r', values='precision@1')
         average_value = result.values.mean()
-        print("The average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
+        print("Average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
         # Plotting
         rc('font', **{'family': 'serif', 'size': 20 * 3})
         f, ax = plt.subplots(figsize=(17 + 17 * int(r / 17), 20))
@@ -63,6 +66,9 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         plt.show()
 
 if __name__ == '__main__':
-    log_name = "Road Traffic Fine Management Process"
+    #log_name = "BPI Challenge 2018"
+    #log_name = "Road Traffic Fine Management Process"
+    log_name = "Sepsis"
+    print(log_name)
     visualization_intrinsic_evaluation_from_csv(log_name)
 
