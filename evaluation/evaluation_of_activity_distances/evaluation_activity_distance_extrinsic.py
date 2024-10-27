@@ -3,7 +3,7 @@ from multiprocessing import Pool
 
 from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
 from evaluation.data_util.util_activity_distances_extrinsic import (
-    get_sublog_list, get_trace_distances, get_precision_values, get_log_with_trace_ids, print_avg_values, get_sampled_sublogs
+    get_sublog_list, get_trace_distances, get_precision_values, get_log_with_trace_ids, print_avg_values, get_sampled_sublogs, get_activity_clustering
 )
 
 from definitions import ROOT_DIR
@@ -62,13 +62,15 @@ def evaluate_extrinsic(activity_distance_functions, log_name):
                 admd["Bose 2009 Substitution Scores"][key] = 1 - admd[
                     "Bose 2009 Substitution Scores"][key]
 
+    activity_clustering = get_activity_clustering(activity_distance_matrix_dict_list,  )
+
     #sample sublogs
     percentage = 0.01
     print(percentage)
     trace_sublog_list_all_list = get_sampled_sublogs(trace_sublog_list_all_list, percentage)
 
     combinations = [
-        (sublog, trace_sublog_list_all_list_flat, activity_distance_matrix_dict, alphabet, sublogsize_list)
+        (sublog, trace_sublog_list_all_list_flat, activity_distance_matrix_dict, alphabet, sublogsize_list, activity_clustering)
         for activity_distance_matrix_dict in activity_distance_matrix_dict_list
         for sublog in trace_sublog_list_all_list
     ]
@@ -80,12 +82,12 @@ def evaluate_extrinsic(activity_distance_functions, log_name):
 
 
 def extrinisc_evaluation(args):
-    trace_list, all_trace_list, activity_distance_matrix_dict, alphabet, sublogsize_list = args
+    trace_list, all_trace_list, activity_distance_matrix_dict, alphabet, sublogsize_list, activity_clustering = args
 
     precison_list = list()
 
     for trace in trace_list:
-        trace_distance_list = get_trace_distances(trace, all_trace_list, activity_distance_matrix_dict)
+        trace_distance_list = get_trace_distances(trace, all_trace_list, activity_distance_matrix_dict, activity_clustering.get(list(activity_distance_matrix_dict.keys())[0]))
 
         precison_list.append(get_precision_values(trace_distance_list, trace, sublogsize_list))
 
@@ -117,17 +119,18 @@ if __name__ == '__main__':
     ##############################################################################
     # extrensic - event logs we want to evaluate
     #event_log_folder = "bpic_2015"
-    #event_log_folder = "pdc_2016"
+    #event_log_folder = "PDC 2016"
     #event_log_folder = "pdc_2020"
-    #event_log_folder = "pdc_2019"
+    event_log_folder = "pdc_2019"
     #event_log_folder = "pdc_2020"
     #event_log_folder = "pdc_2020"
     #event_log_folder = "pdc_2022"
     #event_log_folder = "pdc_2023"
-    #event_log_folder = "wabo_all"
-    event_log_folder = "pdc_2021"
+    #event_log_folder = "WABO"
+    #event_log_folder = "pdc_2021"
     #event_log_folder = "pdc_2023"
-    #event_log_folder = "pdc_2017"
+    #event_log_folder = "PDC 2017"
+    #event_log_folder = "repairExample"
 
 
 
