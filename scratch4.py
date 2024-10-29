@@ -98,27 +98,33 @@ def log_similarity(log_name, activity_distance_functions):
 
     activity_clustering = get_activity_clustering(activity_distance_matrix_dict_list,  )
 
+    one_run_no_activity_cluster = 0
+    for adf in activity_clustering:
+        sublog_cluster_list = []
+        for log in sublog_list:
+            sublog_cluster = []
+            for trace in log:
+                sublog_cluster.append(replace_activities_with_clusters(trace, activity_clustering.get(adf)))
+            sublog_cluster_list.append(sublog_cluster)
 
-    for log in sublog_list:
-        for trace in log:
-            trace = replace_activities_with_clusters(trace, activity_clustering)
+        display_sim_matrix(sublog_cluster_list, adf)
 
-
+def display_sim_matrix(sublog_cluster_list, adf):
     # Create an empty matrix to store similarities
-    n = len(sublog_list)
+    n = len(sublog_cluster_list)
     similarity_matrix = np.zeros((n, n))
 
     # Fill the matrix with similarity values
     for i in range(n):
         print(i)
         for j in range(n):
-            similarity_matrix[i, j] = similarity_percentage(sublog_list[i], sublog_list[j])
+            similarity_matrix[i, j] = similarity_percentage(sublog_cluster_list[i], sublog_cluster_list[j])
 
     # Plot the heatmap
     sns.heatmap(similarity_matrix, annot=True, cmap='coolwarm', fmt=".1f",
                 xticklabels=[f'List {i+1}' for i in range(n)],
                 yticklabels=[f'List {i+1}' for i in range(n)])
-    plt.title('Pairwise Similarity Percentage Heatmap')
+    plt.title('Pairwise Similarity Percentage Heatmap ' + adf)
     plt.show()
 
 if __name__ == '__main__':
@@ -135,7 +141,7 @@ if __name__ == '__main__':
     #event_log_folder = "bpic_2015"
     #event_log_folder = "PDC 2016"
     #event_log_folder = "pdc_2020"
-    event_log_folder = "pdc_2019"
+    event_log_folder = "pdc_2020"
     #event_log_folder = "pdc_2020"
     #event_log_folder = "pdc_2020"
     #event_log_folder = "pdc_2022"
