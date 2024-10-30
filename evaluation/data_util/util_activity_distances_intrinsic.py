@@ -36,8 +36,6 @@ def reservoir_sampling(iterator, sample_size):
 
 
 def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int, sample_size: int):
-    if different_activities_to_replace_count == 5:
-        print("a")
     alphabet_len = len(alphabet)
     alphabet_len_minus_one = alphabet_len -1
     sampled_combinations = set()
@@ -137,10 +135,14 @@ def get_precision_at_k(knn_dict, activity_distances):
             precision_at_k_sum = 0
             for replaced_activity in replaced_activities:
                 for replaced_activity_with in knn_dict[activity_distance][replaced_activities].keys():
-                    if replaced_activity_with[:-2] == replaced_activity:
+                    replaced_activity_with_split = replaced_activity_with.split(':')
+                    if not replaced_activity_with_split[1].isdigit():
+                        print("Naming Error")
+                    if replaced_activity_with_split[0] == replaced_activity:
                         precision_sum = 0
                         for activity in knn_dict[activity_distance][replaced_activities][replaced_activity_with]:
-                            if activity[:-2] == replaced_activity_with[:-2]:
+                            activity_split = activity.split(':')
+                            if activity_split[0] == replaced_activity_with_split[0]:
                                 precision_sum += 1
                         a = len(knn_dict[activity_distance][replaced_activities][replaced_activity_with])
                         if a == 0:

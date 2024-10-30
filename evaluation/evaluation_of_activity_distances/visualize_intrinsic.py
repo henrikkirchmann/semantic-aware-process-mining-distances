@@ -3,12 +3,29 @@ from pathlib import Path
 import pandas as pd
 import os
 import seaborn as sns
-from matplotlib import pyplot as plt, rc
+from matplotlib import pyplot as plt, rcParams, rc
 
 from definitions import ROOT_DIR
 
 def visualization_intrinsic_evaluation_from_csv(log_name):
-    # Specify the file name that was used earlier
+
+    '''
+    #w_index_nn_list = list()
+    #w_index_prec_list = list()
+    for file in os.listdir(ROOT_DIR + '/results/activity_distances/intrinsic/' + log_name):
+        # Load the DataFrame from the CSV file
+        df = pd.read_csv(ROOT_DIR + '/results/activity_distances/intrinsic/' + log_name + "/" + file)
+        # Load results
+        result_prec = df.pivot(index='w', columns='r', values='precision@w-1')
+        result_nn = df.pivot(index='w', columns='r', values='precision@1')
+
+        # Find the index of the first rows where the average is below 0.05
+        row_means_prec = result_prec.mean(axis=1)
+        w_index_prec_list.append(row_means_prec[row_means_prec < 0.2].index[0])
+        row_means_nn = result_nn.mean(axis=1)
+        w_index_nn_list.append(row_means_nn[row_means_prec < 0.2].index[0])
+    '''
+
     for file in os.listdir(ROOT_DIR + '/results/activity_distances/intrinsic/' + log_name):
        
         # Step 1: Remove the ".csv" extension
@@ -28,19 +45,22 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         # Load the DataFrame from the CSV file
         df = pd.read_csv(ROOT_DIR + '/results/activity_distances/intrinsic/' + log_name + "/" + file)
 
-        # heat map precision@w-1
-        result = df.pivot(index='w', columns='r', values='precision@w-1')
-        average_value = result.values.mean()
-        print("Average precision@w-1 is: " + str(average_value) + " " + activity_distance_function)
+        # Load results
+        #max_w = max(w_index_prec_list)
+        max_w = 30
 
-        # Plotting
-        rc('font', **{'family': 'serif', 'size': 20 * 3.5})
-        f, ax = plt.subplots(figsize=(17 + 17 * int(r / 17), 20))
+        print(str(max_w) + "prec")
+
+        #max_w = 30
+        df_filtered = df[df['w'] <= max_w]
+        result_prec = df_filtered.pivot(index='w', columns='r', values='precision@w-1')
+        average_value_prec = result_prec.values.mean()
+        rc('font', **{'family': 'serif', 'serif': ['Times New Roman'], 'size': 12})
         cmap = sns.cm.rocket_r
-        ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
+        ax = sns.heatmap(result_prec, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
         ax.invert_yaxis()
-        ax.set_title("precision@w-1 for " + log_name + " with max sampling size " + str(
-            sampling_size) + "\n" + activity_distance_function, pad=20)
+        ax.set_title("precision@w-1 for " + log_name + "\n" + activity_distance_function + " - Sampling Size: " + str(
+            sampling_size))
         Path(ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k").mkdir(parents=True, exist_ok=True)
         plt.savefig(
             ROOT_DIR + "/results/activity_distances/intrinsic/precision_at_k/" + "pre_" + activity_distance_function + "_" + log_name + "_r:" + str(
@@ -48,27 +68,41 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         plt.show()
 
         # heat map precision@1
-        result = df.pivot(index='w', columns='r', values='precision@1')
-        average_value = result.values.mean()
-        print("Average Nearest Neighbor is: " + str(average_value) + " " + activity_distance_function)
+        #max_w = max(w_index_nn_list)
+        print(str(max_w) + "nn")
+        max_w = 31
+
+        result_nn = df_filtered.pivot(index='w', columns='r', values='precision@1')
+
+        average_value_nn = result_nn.values.mean()
+        print("Average Nearest Neighbor is: " + str(average_value_nn) + " " + activity_distance_function)
         # Plotting
-        rc('font', **{'family': 'serif', 'size': 20 * 3})
-        f, ax = plt.subplots(figsize=(17 + 17 * int(r / 17), 20))
+        #rc('font', **{'family': 'serif', 'size': 20})
+        #f, ax = plt.subplots()
         cmap = sns.cm.rocket_r
-        ax = sns.heatmap(result, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
+        ax = sns.heatmap(result_nn, cmap=cmap, vmin=0, vmax=1, linewidth=.5)
         ax.invert_yaxis()
-        ax.set_title("Nearest Neighbor for " + log_name + " with max sampling size " + str(
-            sampling_size) + "\n" + activity_distance_function, pad=20)
+        ax.set_title("Nearest Neighbor for " + log_name + "\n" + activity_distance_function + " - Sampling Size: " + str(
+            sampling_size))
         Path(ROOT_DIR + "/results/activity_distances/intrinsic/nn").mkdir(parents=True, exist_ok=True)
         plt.savefig(
             ROOT_DIR + "/results/activity_distances/intrinsic/nn/" + "nn" + activity_distance_function + "_" + log_name + "_r:" + str(
                 r) + "_w:" + str(w) + "_sampling:" + str(sampling_size) + ".pdf", format="pdf", transparent=True)
         plt.show()
+        print("Average precision@w-1 is: " + str(average_value_prec) + " " + activity_distance_function)
+
 
 if __name__ == '__main__':
     #log_name = "BPI Challenge 2018"
     #log_name = "Road Traffic Fine Management Process"
-    log_name = "Sepsis"
-    print(log_name)
+    #log_name = "BPI Challenge 2015 1"
+    #log_name = "BPI Challenge 2017"
+    #log_name = "BPI Challenge 2018"
+    #log_name = "BPI Challenge 2019"
+    #log_name = "PDC 2016" # take for visualization
+    #log_name = "PDC 2017" # visualization
+    #log_name = "PDC 2019"
+    #log_name = "Sepsis"
+    #log_name = "WABO"
+    log_name = "repairExample"
     visualization_intrinsic_evaluation_from_csv(log_name)
-
