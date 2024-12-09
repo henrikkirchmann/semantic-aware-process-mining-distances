@@ -103,8 +103,8 @@ def intrinsic_evaluation(args):
                 reverse = False  # high values = high distances
 
             # 4: evaluation of all activity distance matrices
-            if activities_to_replace_with_count == 11:
-                print(2)
+            #if activities_to_replace_with_count == 11:
+            #    print(2)
             w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse,
                                                activities_to_replace_with_count - 1)
             precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
@@ -129,11 +129,12 @@ if __name__ == '__main__':
     activity_distance_functions = list()
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    activity_distance_functions.append("Unit Distance")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     ##############################################################################
     r_min = 5
-    w = 13
-    sampling_size = 3
+    w = 15
+    sampling_size = 2
     print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate

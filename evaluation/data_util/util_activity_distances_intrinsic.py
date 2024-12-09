@@ -80,7 +80,6 @@ def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_lis
                 i += 1
             log_with_replaced_activities.append(trace_with_replaced_activities)
         logs_with_replaced_activities_dict[activities_to_replace_tuple] = log_with_replaced_activities
-        #del
     return logs_with_replaced_activities_dict
 
 
@@ -90,8 +89,6 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
     for replaced_activity in replaced_activities:
         for i in range(activities_to_replace_with_count):
             replaced_activity_i = replaced_activity + ':' + str(i)
-            # if replaced_activity_i == "Release E:1":
-            #    print("a")
             # Collect all similarity scores for the current replaced_activity
             distances = []
             for (activity1, activity2), distance in similarity_scores_of_activities.items():
@@ -145,8 +142,6 @@ def get_precision_at_k(knn_dict, activity_distances):
                             if activity_split[0] == replaced_activity_with_split[0]:
                                 precision_sum += 1
                         a = len(knn_dict[activity_distance][replaced_activities][replaced_activity_with])
-                        if a == 0:
-                            print("a")
                         precision_at_k_sum += precision_sum / a
             precision_replaced_activity_at_k += precision_at_k_sum / len(
                 knn_dict[activity_distance][replaced_activities].keys())

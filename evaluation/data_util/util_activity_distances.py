@@ -79,6 +79,15 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                                                                       get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]), sg)
                 activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
+        elif "Unit Distance" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key], get_alphabet(
+                                                                          logs_with_replaced_activities_dict[key]))
+                activity_distance_matrix_dict[activity_distance_function][key] = unit_distance_matrix
+
+
+
+
     return dict(activity_distance_matrix_dict)
 
 
@@ -166,5 +175,15 @@ def print_log_stats(log, alphabet):
     print("Trace Length Min: " + str(min_length))
     print("Trace Length Avg: " + str(avg_length))
     print("Trace Length Max: " + str(max_length))
+
+
+def get_unit_cost_activity_distance_matrix(log, alphabet):
+    distances = {}
+    for activity1 in alphabet:
+        for activity2 in alphabet:
+            distances[(activity1, activity2)] = 1
+    return distances
+
+
 
 
