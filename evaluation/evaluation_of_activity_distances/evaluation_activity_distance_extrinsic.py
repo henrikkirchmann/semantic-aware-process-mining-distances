@@ -1,6 +1,8 @@
 import multiprocessing
 from multiprocessing import Pool
 
+from matplotlib import pyplot as plt
+import seaborn as sns
 from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
 from evaluation.data_util.util_activity_distances_extrinsic import (
     get_sublog_list, get_trace_distances, get_precision_values, get_log_with_trace_ids, print_avg_values, get_sampled_sublogs, get_activity_clustering
@@ -62,7 +64,9 @@ def evaluate_extrinsic(activity_distance_functions, log_name):
                 admd["Bose 2009 Substitution Scores"][key] = 1 - admd[
                     "Bose 2009 Substitution Scores"][key]
 
-    activity_clustering = get_activity_clustering(activity_distance_matrix_dict_list,  )
+    activity_clustering = get_activity_clustering(activity_distance_matrix_dict_list)
+
+    subllog_similarity(sublog_list, activity_clustering)
 
     #sample sublogs
     percentage = 0.01
@@ -105,6 +109,77 @@ def extrinisc_evaluation(args):
     # avg = sum(precison_list) / len(precison_list)
     print(next(iter(activity_distance_matrix_dict)) + " NN: " + str(nn) + " Pre: " + str(pre) + " Pre10: " + str(pre10))
     return (next(iter(activity_distance_matrix_dict)), nn, pre, pre10)
+
+
+def subllog_similarity(sublog_list, activity_clustering):
+    # Create an empty matrix to store similarities
+    n = len(sublog_list)
+    similarity_matrix = [[0 for _ in range(n)] for _ in range(n)]  # Without NumPy
+
+    for log in sublog_list:
+        for trace in log:
+            trace = replace_activities_with_clusters(trace, activity_clustering)
+
+    # Fill the matrix with similarity values
+    for i in range(n):
+        print(f"Calculating similarity for List {i + 1}")
+        for j in range(n):
+            similarity_matrix[i][j] = similarity_percentage(sublog_list[i], sublog_list[j])
+
+    # Plot the heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(similarity_matrix, annot=True, cmap='coolwarm', fmt=".1f",
+                xticklabels=[f'List {i + 1}' for i in range(n)],
+                yticklabels=[f'List {i + 1}' for i in range(n)])
+    plt.title('Pairwise Similarity Percentage Heatmap')
+    plt.show()
+
+# Function to flatten lists of lists
+def flatten(list_of_lists):
+    return [item for sublist in list_of_lists for item in sublist]
+
+# Calculate the percentage of similarity
+def similarity_percentage(list1, list2):
+    number_of_same_traces = 0
+    matched_indices = set()  # Track indices of matched traces in list2
+
+    for trace1 in list1:
+        for idx, trace2 in enumerate(list2):
+            if idx in matched_indices:
+                continue  # Skip if trace2 at idx is already matched
+
+            if len(trace1) != len(trace2):
+                continue  # Skip if lengths differ
+
+            if all(trace1[i] == trace2[i] for i in range(len(trace1))):  # Check full match
+                number_of_same_traces += 1
+                matched_indices.add(idx)  # Mark trace2 at idx as matched
+                break  # Move to the next trace1 after finding a match
+
+    return number_of_same_traces / len(list1) if list1 else 0
+
+
+def replace_activities_with_clusters(trace, activity_clustering):
+    """
+    Replace activities in a trace with their corresponding cluster values from activity_clustering.
+    If an activity has a value of -1 in activity_clustering, keep the activity as it is.
+
+    Args:
+        trace (list of str): List of activities.
+        activity_clustering (dict): Dictionary mapping activities to clusters.
+
+    Returns:
+        list: A new trace with activities replaced by cluster values where applicable.
+    """
+    newTrace = []
+    for activity in trace:
+        newActivity = activity_clustering[activity]
+        if newActivity == -1:
+            newActivity = activity
+        newTrace.append(newActivity)
+    return newTrace
+
+
 
 
 if __name__ == '__main__':
