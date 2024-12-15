@@ -127,8 +127,8 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
-    activity_distance_functions.append("Bose 2009 Substitution Scores")
-    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    #activity_distance_functions.append("Bose 2009 Substitution Scores")
+    #activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
     activity_distance_functions.append("Unit Distance")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     ##############################################################################

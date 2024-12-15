@@ -114,5 +114,5 @@ if __name__ == '__main__':
         "Bose 2009 Substitution Scores",
         "De Koninck 2018 act2vec CBOW"
     ]
-    event_log_folder = "pdc_2020"
+    event_log_folder = "pdc_2019"
     log_similarity(event_log_folder, activity_distance_functions)
