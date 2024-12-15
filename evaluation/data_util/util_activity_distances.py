@@ -181,7 +181,10 @@ def get_unit_cost_activity_distance_matrix(log, alphabet):
     distances = {}
     for activity1 in alphabet:
         for activity2 in alphabet:
-            distances[(activity1, activity2)] = 1
+            if activity1 == activity2:
+                distances[(activity1, activity2)] = 0
+            else:
+                distances[(activity1, activity2)] = 1
     return distances
 
 
