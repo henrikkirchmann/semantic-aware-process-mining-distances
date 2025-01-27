@@ -151,12 +151,14 @@ if __name__ == '__main__':
     activity_distance_functions = list()
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    activity_distance_functions.append("Chiorrini 2023 Embedding Process Structure")
     activity_distance_functions.append("Unit Distance")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+
     ##############################################################################
-    r_min = 10
-    w = 5
-    sampling_size = 3
+    r_min = 3
+    w = 3
+    sampling_size = 2
     print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate
