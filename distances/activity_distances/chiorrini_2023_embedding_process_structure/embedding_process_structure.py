@@ -17,7 +17,7 @@ from pm4py.objects.petri_net.importer.importer import apply as import_pnml
 import os
 
 
-def get_embedding_process_structure_distance_matrix(log, alphabet):
+def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
 
     event_log = EventLog()
 
@@ -54,9 +54,12 @@ def get_embedding_process_structure_distance_matrix(log, alphabet):
 
     # Clean up the temporary file
     os.remove(net_original_file)
+    os.remove(net_modified_file)
 
 
     tree = wf_net_converter.apply(net, initial_marking, final_marking)
+
+    start_time = time.time()
 
     #pm4py.view_process_tree(tree)
     tree_2 = generic.fold(tree)
@@ -139,7 +142,12 @@ def get_embedding_process_structure_distance_matrix(log, alphabet):
         for activity2 in alphabet:
             distance = cosine_distance(features[activity1], features[activity2])
             distances[(activity1, activity2)] = distance
-    return distances
+
+    if take_time is False:
+        return distances
+    else:
+        return time.time() - start_time
+
 
 
 def cosine_distance(array1, array2):

@@ -89,7 +89,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
             for key in logs_with_replaced_activities_dict:
                 embedding_process_structure_distance_matrix = get_embedding_process_structure_distance_matrix(logs_with_replaced_activities_dict[key],
                                                                       get_alphabet(
-                                                                          logs_with_replaced_activities_dict[key]))
+                                                                          logs_with_replaced_activities_dict[key]), False)
                 activity_distance_matrix_dict[activity_distance_function][key] = embedding_process_structure_distance_matrix
 
 
