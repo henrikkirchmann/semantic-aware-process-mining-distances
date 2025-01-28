@@ -11,6 +11,10 @@ from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.util.xes_constants import DEFAULT_NAME_KEY
 from pm4py.objects.log.exporter.xes import exporter as xes_exporter
 from distances.activity_distances.chiorrini_2023_embedding_process_structure.new_parallelism import newparallelism, new_parallelism_pathlength
+from io import StringIO
+from pm4py.objects.petri_net.exporter.exporter import apply as export_pnml
+from pm4py.objects.petri_net.importer.importer import apply as import_pnml
+
 
 
 def get_embedding_process_structure_distance_matrix(log, alphabet):
@@ -32,25 +36,23 @@ def get_embedding_process_structure_distance_matrix(log, alphabet):
         event_log.append(pm4py_trace)  # Add trace to the event log
 
     # Discover the workflow net
-    net, initial_marking, final_marking = pm4py.discover_petri_net_inductive(log)
+    net_or, im, fm = pm4py.discover_petri_net_inductive(event_log)
 
-    # Save the workflow net as a .pnml file
-    petri_net_file_name = "distances/activity_distances/chiorrini_2023_embedding_process_structure/log/" + logname + ".pnml"
+    # Serialize the Petri net to a string (PNML format)
+    pnml_buffer = StringIO()
+    export_pnml(net_or, im, fm, pnml_buffer)
+    pnml_string = pnml_buffer.getvalue()
+    pnml_buffer.close()
+
+    # Apply modifications to the PNML string
+    pnml_modified_string = make_visible(pnml_string)
+
+    # Deserialize the modified PNML string back into a Petri net
+    pnml_modified_buffer = StringIO(pnml_modified_string)
+    net, initial_marking, final_marking = import_pnml(pnml_modified_buffer)
+    pnml_modified_buffer.close()
 
 
-    pm4py.write_pnml(net, initial_marking, final_marking, petri_net_file_name)
-
-    net_path = petri_net_file_name
-    net_original_file = net_path
-
-
-    net_modified_file = net_original_file.replace(".pnml", "_visible.pnml")
-    with open(net_original_file) as infile:
-        with open(net_modified_file, 'w') as outfile:
-            outfile.write(make_visible(infile.read()))
-
-    net, initial_marking, final_marking = pnml_import.apply(net_modified_file)
-    net_or, im, fm = pnml_import.apply(net_original_file)  # IMPORTANT: be sure to use the original net
     tree = wf_net_converter.apply(net, initial_marking, final_marking)
     #pm4py.view_process_tree(tree)
     tree_2 = generic.fold(tree)
