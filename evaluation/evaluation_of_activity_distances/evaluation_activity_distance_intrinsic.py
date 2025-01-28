@@ -11,7 +11,7 @@ from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_li
 from evaluation.data_util.util_activity_distances_intrinsic import (
     get_log_control_flow_perspective, get_activities_to_replace,
     get_logs_with_replaced_activities_dict,
-    get_knn_dict, get_precision_at_k, save_intrinsic_results
+    get_knn_dict, get_precision_at_k, save_intrinsic_results, get_triplet, get_diameter
 )
 
 
@@ -30,7 +30,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Transform activity labels into sequential numbers to improve performance.
         #log_control_flow_perspective = get_log_control_flow_perspective_with_short_activity_names(
         #    log_control_flow_perspective, alphabet)
-        alphabet = get_alphabet(log_control_flow_perspective)
+        #alphabet = get_alphabet(log_control_flow_perspective)
 
 
         # Limit the number of activity replacements to 'r_min' when the total number of activities in the log exceeds 'r_min' to enhance performance.
@@ -71,7 +71,7 @@ def intrinsic_evaluation(args):
 
     print("start ---- r:" + str(different_activities_to_replace_count) + " w: " + str(activities_to_replace_with_count))
 
-    # 1.1: limit the number of logs for performance
+    # 1.1: limit the number of logs for better performance
     if len(activities_to_replace_in_each_run_list) >= sampling_size:
         activities_to_replace_in_each_run_list = random.sample(list(activities_to_replace_in_each_run_list),
                                                                sampling_size)
@@ -81,8 +81,12 @@ def intrinsic_evaluation(args):
 
     for activity_distance_function in activity_distance_function_list:
         activity_distance_function = [activity_distance_function]
+
+        diameter_list = list()
         precision_at_w_minus_1_list = list()
         precision_at_1_list = list()
+        triplet_list = list()
+
         for activities_to_replace in activities_to_replace_in_each_run_list:
             # 2: replace activities
             logs_with_replaced_activities_dict = get_logs_with_replaced_activities_dict(
@@ -103,20 +107,38 @@ def intrinsic_evaluation(args):
                 reverse = False  # high values = high distances
 
             # 4: evaluation of all activity distance matrices
-            if activities_to_replace_with_count == 11:
-                print(2)
+            #if activities_to_replace_with_count == 11:
+            #    print(2)
+
+
+            #Average Diameter Distance
+            diameter_list.append(get_diameter(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+
+            #Precision@w-1
             w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse,
                                                activities_to_replace_with_count - 1)
             precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
             precision_at_w_minus_1_list.append(precision_at_w_minus_1_dict[activity_distance_function[0]])
 
+            #Nearest Neighbor
             one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
             precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
             precision_at_1_list.append(precision_at_1_dict[activity_distance_function[0]])
+
+            #Triplet
+            triplet_list.append(get_triplet(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+
+            
+
+
+
+
+        diameter = sum(diameter_list) / len(diameter_list)
         precision_at_w_minus_1 = sum(precision_at_w_minus_1_list) / len(precision_at_w_minus_1_list)
         precision_at_1 = sum(precision_at_1_list) / len(precision_at_1_list)
-        results_list.append((different_activities_to_replace_count, activities_to_replace_with_count,
-                             precision_at_w_minus_1, precision_at_1))
+        triplet = sum(triplet_list) / len(triplet_list)
+        results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, diameter,
+                             precision_at_w_minus_1, precision_at_1, triplet))
 
     print("end ---- r:" + str(different_activities_to_replace_count) + " w: " + str(
         activities_to_replace_with_count) + " sampling size: " + str(sampling_size))
@@ -127,19 +149,23 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
-    activity_distance_functions.append("Bose 2009 Substitution Scores")
-    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    #activity_distance_functions.append("Bose 2009 Substitution Scores")
+    #activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    activity_distance_functions.append("Chiorrini 2023 Embedding Process Structure")
+    #activity_distance_functions.append("Unit Distance")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+
     ##############################################################################
-    r_min = 5
-    w = 13
-    sampling_size = 3
+    r_min = 3
+    w = 3
+    sampling_size = 1
     print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
+    #log_list.append("Sepsis")
     log_list.append("repairExample")
-    # log_list.append("bpic_2015")
+    #log_list.append("bpic_2015")
     #log_list.append("Sepsis")
     #log_list.append("Road Traffic Fine Management Process")
     # log_list.append("bpic_2015")

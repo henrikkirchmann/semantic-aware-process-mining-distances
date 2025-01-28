@@ -7,6 +7,7 @@ from distances.activity_distances.bose_2009_context_aware_trace_clustering.algor
     get_substitution_and_insertion_scores
 from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
 import gc
+from distances.activity_distances.chiorrini_2023_embedding_process_structure.embedding_process_structure import get_embedding_process_structure_distance_matrix
 
 def get_alphabet(log: List[List[str]]) -> List[str]:
     unique_activities = set()
@@ -79,6 +80,23 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                                                                       get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]), sg)
                 activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
+        elif "Unit Distance" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key], get_alphabet(
+                                                                          logs_with_replaced_activities_dict[key]))
+                activity_distance_matrix_dict[activity_distance_function][key] = unit_distance_matrix
+        elif "Chiorrini 2023 Embedding Process Structure" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                embedding_process_structure_distance_matrix = get_embedding_process_structure_distance_matrix(logs_with_replaced_activities_dict[key],
+                                                                      get_alphabet(
+                                                                          logs_with_replaced_activities_dict[key]))
+                activity_distance_matrix_dict[activity_distance_function][key] = embedding_process_structure_distance_matrix
+
+
+
+
+
+
     return dict(activity_distance_matrix_dict)
 
 
@@ -166,5 +184,18 @@ def print_log_stats(log, alphabet):
     print("Trace Length Min: " + str(min_length))
     print("Trace Length Avg: " + str(avg_length))
     print("Trace Length Max: " + str(max_length))
+
+
+def get_unit_cost_activity_distance_matrix(log, alphabet):
+    distances = {}
+    for activity1 in alphabet:
+        for activity2 in alphabet:
+            if activity1 == activity2:
+                distances[(activity1, activity2)] = 0
+            else:
+                distances[(activity1, activity2)] = 1
+    return distances
+
+
 
 
