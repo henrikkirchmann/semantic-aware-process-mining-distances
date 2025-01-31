@@ -48,7 +48,8 @@ def evaluate_runtime(activity_distance_functions, log_list, number_of_repetition
                     get_unit_cost_activity_distance_matrix(log_control_flow_perspective, alphabet)
                     runtimes.append(time.time() - start_time)
                 elif activity_distance_function == "Chiorrini 2023 Embedding Process Structure":
-                    start_time = time.time()
+                    # to make the authors implmenetation work we have to some I/O operations, with pnml files,
+                    # thus we measure the time without them, and implemented the time measure inside the called function
                     runtimes.append(get_embedding_process_structure_distance_matrix(log_control_flow_perspective, alphabet, True))
 
 
