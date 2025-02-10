@@ -2,15 +2,15 @@ import pm4py
 from pm4py.objects.petri_net.importer import importer as pnml_import
 from pm4py.objects.conversion.wf_net import converter as wf_net_converter
 import pm4py.objects.process_tree.utils.generic as generic
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.configuration import import_path, file_print
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.model_feature import p_length, optionality, parallelism
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.tree_feature import make_visible, feature_map
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.configuration import import_path, file_print
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.model_feature import p_length, optionality, parallelism
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.tree_feature import make_visible, feature_map
 import time
 import numpy as np
 from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.util.xes_constants import DEFAULT_NAME_KEY
 from pm4py.objects.log.exporter.xes import exporter as xes_exporter
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.new_parallelism import newparallelism, new_parallelism_pathlength
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.new_parallelism import newparallelism, new_parallelism_pathlength
 from io import StringIO, BytesIO
 from pm4py.objects.petri_net.exporter.exporter import apply as export_pnml
 from pm4py.objects.petri_net.importer.importer import apply as import_pnml

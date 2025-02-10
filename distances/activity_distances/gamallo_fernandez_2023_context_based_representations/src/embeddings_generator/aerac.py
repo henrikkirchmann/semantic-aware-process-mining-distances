@@ -10,21 +10,18 @@ import lightning as pl
 from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar, EarlyStopping
 from torch.utils.data import DataLoader
 
-#from logger import EmbGeneratorLogger
-from pandas_dataset import EventlogDataset
-from utils import DataFrameFields, Config, EmbType
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.logger import EmbGeneratorLogger
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.pandas_dataset import EventlogDataset
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.utils import DataFrameFields, Config, EmbType
 
 torch.manual_seed(123)
 np.random.seed(123)
-
-import csv
-from datetime import datetime, timedelta
-import os
 
 
 class AEracDataset(torch.utils.data.Dataset):
     def __init__(self, dataset: pd.DataFrame, num_categories: int, win_size: int):
         self.dataset = dataset.reset_index()  # Not drop index
+
         self.num_categories = num_categories
         self.win_size = win_size
 
@@ -48,12 +45,12 @@ class AEracDataset(torch.utils.data.Dataset):
         vectorized_context = torch.tensor(np.array(vectorized_context))
 
         # Pre-padding
-        pre_pad_len = start_idx - (idx - self.win_size)
+        pre_pad_len = start_idx - (idx-self.win_size)
         if pre_pad_len > 0:
             pre_pad_tensor = torch.zeros((pre_pad_len, self.num_categories))
             vectorized_context = torch.cat([pre_pad_tensor, vectorized_context])
         # Post-padding
-        post_pad_len = (idx + self.win_size) - end_idx
+        post_pad_len = (idx+self.win_size) - end_idx
         if post_pad_len > 0:
             post_pad_tensor = torch.zeros((post_pad_len, self.num_categories))
             vectorized_context = torch.cat([vectorized_context, post_pad_tensor])
@@ -190,7 +187,7 @@ class AEracModel(pl.LightningModule):
 
         f1_score = self.f1_score(reconstruction, inputs_idx)
         self.log("train_f1", f1_score, on_step=True)
-
+        
         return {'loss': loss, 'acc': accuracy, 'f1': f1_score}
         '''
 
@@ -265,29 +262,30 @@ class AEracModel(pl.LightningModule):
 
 
 def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
-                    ):
-    control_flow_lists = [["A", "B", "C", "D", "E", "F", "G"],
-                          ["A", "H", "D", "E", "F", "G"]]
-
-    #logger: EmbGeneratorLogger
+                    logger: EmbGeneratorLogger):
     torch.set_float32_matmul_precision('medium')
 
     # Create specific AErac datasets for each split
-    csv_file, act_to_id_dict = transform_control_flow_lists_to_csv(control_flow_lists)
-
-    eventlog = EventlogDataset(csv_file)
-
     train_dataset = AEracDataset(eventlog.df_train, eventlog.num_activities, win_size)
-    #val_dataset = AEracDataset(eventlog.df_val, eventlog.num_activities, win_size)
-    #test_dataset = AEracDataset(eventlog.df_test, eventlog.num_activities, win_size)
+    val_dataset = AEracDataset(eventlog.df_val, eventlog.num_activities, win_size)
+    test_dataset = AEracDataset(eventlog.df_test, eventlog.num_activities, win_size)
 
     # Create dataloaders for each split
-    num_workers = os.cpu_count()
+    num_workers = 0
+    #num_workers = 6
+    """ 
     train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE,
-                              shuffle=True, num_workers=num_workers)
+                              shuffle=True, num_workers=num_workers, persistent_workers=True)
     # Shuffling not needed in val/test loaders
-    #val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, num_workers=num_workers)
-    #test_loader = DataLoader(test_dataset, batch_size=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, num_workers=num_workers, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size=num_workers)
+    """
+    train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE,
+                              shuffle=True)
+    # Shuffling not needed in val/test loaders
+    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE)
+    test_loader = DataLoader(test_dataset)
+
 
     model = AEracModel(eventlog.num_activities, win_size, emb_size).double()
 
@@ -301,16 +299,15 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
 
     early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
 
-    #accelerator='gpu', devices=1,
-    trainer = pl.Trainer( max_epochs=Config.EPOCHS,
-                         callbacks=[TQDMProgressBar(refresh_rate=20), early_stopping])
+    trainer = pl.Trainer(accelerator='auto', devices=1, max_epochs=Config.EPOCHS,
+                         callbacks=[TQDMProgressBar(refresh_rate=200), checkpoint_callback, early_stopping])
 
     try:
         shutil.rmtree("./models/" + eventlog.filename + "/embeddings/" + str(EmbType.AERAC) + "/checkpoints/")
     except FileNotFoundError:
         pass
 
-    trainer.fit(model, train_loader)
+    trainer.fit(model, train_loader, val_loader)
 
     best_model = AEracModel.load_from_checkpoint(
         "./models/" + eventlog.filename + "/embeddings/" + str(EmbType.AERAC) + "/checkpoints/" +
@@ -320,39 +317,12 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
         emb_size=emb_size
     ).double()
 
-    #logger.log_console("Testing...")
-    #dict_metrics = trainer.test(best_model, test_loader)
+    logger.log_console("Testing...")
+    dict_metrics = trainer.test(best_model, test_loader)
 
     embeddings_dict = best_model.get_embeddings()
 
-    return
-    #return dict_metrics[0]["test_loss_epoch"], embeddings_dict, dict_metrics[0]["test_err_epoch"]
+    print(embeddings_dict)
 
+    return dict_metrics[0]["test_loss_epoch"], embeddings_dict, dict_metrics[0]["test_err_epoch"]
 
-def transform_control_flow_lists_to_csv(control_flow_lists):
-
-    # Create a mapping from activities to unique integer IDs
-    activity_set = sorted(set(activity for seq in control_flow_lists for activity in seq))
-    activity_to_id = {activity: idx for idx, activity in enumerate(activity_set)}
-
-    # Convert event log to CSV format
-    start_time = datetime(1970, 1, 1)
-    time_delta = timedelta(hours=1)
-
-    events = []
-    for case_id, activities in enumerate(control_flow_lists):
-        for event_index, activity in enumerate(activities):
-            timestamp = start_time + event_index * time_delta
-            events.append([case_id, activity_to_id[activity], timestamp.isoformat() + "+00:00"])
-
-    process_id = os.getpid()
-    # Output CSV file name
-    output_file = f"event_log_{process_id}.csv"
-
-    # Write to CSV
-    with open(output_file, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["CaseID", "Activity", "Timestamp"])
-        writer.writerows(events)
-
-    return output_file, activity_to_id

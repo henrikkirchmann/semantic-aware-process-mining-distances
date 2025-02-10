@@ -7,7 +7,11 @@ from distances.activity_distances.bose_2009_context_aware_trace_clustering.algor
     get_substitution_and_insertion_scores
 from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
 import gc
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.embedding_process_structure import get_embedding_process_structure_distance_matrix
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import get_embedding_process_structure_distance_matrix
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import get_context_based_distance_matrix
+import os
+import shutil
+from definitions import ROOT_DIR
 
 def get_alphabet(log: List[List[str]]) -> List[str]:
     unique_activities = set()
@@ -85,18 +89,18 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                 unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key], get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]))
                 activity_distance_matrix_dict[activity_distance_function][key] = unit_distance_matrix
-        elif "Chiorrini 2023 Embedding Process Structure" == activity_distance_function:
+        elif "Chiorrini 2022 Embedding Process Structure" == activity_distance_function:
             for key in logs_with_replaced_activities_dict:
                 embedding_process_structure_distance_matrix = get_embedding_process_structure_distance_matrix(logs_with_replaced_activities_dict[key],
                                                                       get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]), False)
                 activity_distance_matrix_dict[activity_distance_function][key] = embedding_process_structure_distance_matrix
-
-
-
-
-
-
+        elif "Gamallo Fernandez 2023 Context Based" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                embedding_process_structure_distance_matrix = get_context_based_distance_matrix(
+                    logs_with_replaced_activities_dict[key])
+                activity_distance_matrix_dict[activity_distance_function][
+                    key] = embedding_process_structure_distance_matrix
     return dict(activity_distance_matrix_dict)
 
 
@@ -195,6 +199,27 @@ def get_unit_cost_activity_distance_matrix(log, alphabet):
             else:
                 distances[(activity1, activity2)] = 1
     return distances
+
+def delete_temporary_files():
+    folder_path = ROOT_DIR + "/evaluation/evaluation_of_activity_distances/modles"
+    try:
+        if os.path.exists(folder_path):  # Check if folder exists
+            shutil.rmtree(folder_path)
+            print("Folder deleted successfully.")
+        else:
+            print("Folder does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    folder_path = ROOT_DIR + "/evaluation/evaluation_of_activity_distances/lightning_logs/"
+    try:
+        if os.path.exists(folder_path):  # Check if folder exists
+            shutil.rmtree(folder_path)
+            print("Folder deleted successfully.")
+        else:
+            print("Folder does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 

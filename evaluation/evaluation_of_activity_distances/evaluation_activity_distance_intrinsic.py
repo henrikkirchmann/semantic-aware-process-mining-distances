@@ -6,7 +6,7 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 
 from definitions import ROOT_DIR
 from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict, \
-    get_log_control_flow_perspective_with_short_activity_names
+    get_log_control_flow_perspective_with_short_activity_names, delete_temporary_files
 from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_list
 from evaluation.data_util.util_activity_distances_intrinsic import (
     get_log_control_flow_perspective, get_activities_to_replace,
@@ -57,6 +57,9 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Start the computation
         with Pool(processes=cores_to_use) as pool:
             results = pool.map(intrinsic_evaluation, combinations)
+
+        #clear tempory files
+        delete_temporary_files()
 
         # Combine and save results
         save_intrinsic_results(activity_distance_functions, results, log_name, r, w, sampling_size)
@@ -151,9 +154,10 @@ if __name__ == '__main__':
     activity_distance_functions = list()
     #activity_distance_functions.append("Bose 2009 Substitution Scores")
     #activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    activity_distance_functions.append("Chiorrini 2023 Embedding Process Structure")
+    #activity_distance_functions.append("Chiorrini 2023 Embedding Process Structure")
     #activity_distance_functions.append("Unit Distance")
     # activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
 
     ##############################################################################
     r_min = 3

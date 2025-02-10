@@ -11,7 +11,7 @@ from distances.activity_distances.bose_2009_context_aware_trace_clustering.algor
     get_substitution_and_insertion_scores
 )
 from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
-from distances.activity_distances.chiorrini_2023_embedding_process_structure.embedding_process_structure import (
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import (
     get_embedding_process_structure_distance_matrix
 )
 
