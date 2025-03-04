@@ -2,6 +2,7 @@ import os
 import shutil
 
 import pandas as pd
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import numpy as np
 import torch
 import torch.nn as nn

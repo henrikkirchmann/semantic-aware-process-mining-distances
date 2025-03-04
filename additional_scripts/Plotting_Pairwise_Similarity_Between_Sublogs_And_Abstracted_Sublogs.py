@@ -2,7 +2,7 @@ import multiprocessing
 from multiprocessing import Pool
 import seaborn as sns
 import matplotlib.pyplot as plt
-from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict_list, print_log_stats
+from evaluation.data_util.util_activity_distances import get_alphabet, get_normalized_activity_distance_matrix_dict_list, print_log_stats
 from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_list, get_log_with_trace_ids, get_activity_clustering
 
 # Function to flatten lists of lists
@@ -58,7 +58,7 @@ def log_similarity(log_name, activity_distance_functions):
     cores_to_use = max(1, cores_to_use)
 
     with Pool(processes=cores_to_use) as pool:
-        activity_distance_matrix_dict_list = pool.map(get_activity_distance_matrix_dict_list, combinations)
+        activity_distance_matrix_dict_list = pool.map(get_normalized_activity_distance_matrix_dict_list, combinations)
 
     print("Distances Computed")
 

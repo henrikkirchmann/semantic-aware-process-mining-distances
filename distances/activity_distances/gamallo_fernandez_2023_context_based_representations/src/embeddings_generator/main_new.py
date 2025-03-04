@@ -406,4 +406,5 @@ def delete_temporary_files(xes_path, csv_path, config_csv_path):
         os.remove(cv_path + "fold" + str(i) + "_train_" + filename)
         os.remove(cv_path + "fold" + str(i) + "_val_" + filename)
         os.remove(cv_path + "fold" + str(i) + "_test_" + filename)
+    
     return

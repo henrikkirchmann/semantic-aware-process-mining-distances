@@ -19,6 +19,8 @@ from nltk.util import ngrams
 from sklearn.metrics import f1_score
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import tensorflow as tf
 import pathlib
 import tensorflow.keras.utils as ku

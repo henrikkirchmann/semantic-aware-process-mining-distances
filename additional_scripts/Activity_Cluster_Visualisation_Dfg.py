@@ -10,7 +10,7 @@ import hdbscan
 from scipy.spatial import ConvexHull
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from pm4py.algo.discovery.dfg import algorithm as dfg_discovery
-from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
+from evaluation.data_util.util_activity_distances import get_alphabet, get_normalized_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
 from evaluation.data_util.util_activity_distances_intrinsic import get_log_control_flow_perspective
 from evaluation.data_util.util_activity_distances_extrinsic import (
     get_sublog_list, get_trace_distances, get_precision_values, get_log_with_trace_ids, print_avg_values, get_sampled_sublogs
@@ -84,7 +84,7 @@ def run_mds():
     cores_to_use = max(1, cores_to_use)
 
     with Pool(processes=cores_to_use) as pool:
-        activity_distance_matrix_dict_list = pool.map(get_activity_distance_matrix_dict_list, combinations)
+        activity_distance_matrix_dict_list = pool.map(get_normalized_activity_distance_matrix_dict_list, combinations)
 
     # Step 1: Discover and plot Directly Follows Graph (DFG)
     dfg_list = list()

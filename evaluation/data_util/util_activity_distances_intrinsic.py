@@ -319,8 +319,6 @@ def get_avg_diameter_value(replaced_activities, similarity_scores_of_activities,
 
     #for performance reasons transform matrix into nested dict
     normalized_similarity_scores_of_activities = get_nested_dict(normalized_similarity_scores_of_activities)
-    if len(replaced_activities) > 3:
-        print("a")
     replaced_activities_dict = get_replaced_activities_dict(replaced_activities, normalized_similarity_scores_of_activities)
     diameter_per_class = list()
     for replaced_activity in replaced_activities:

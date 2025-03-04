@@ -8,6 +8,8 @@ from jellyfish._jellyfish import damerau_levenshtein_distance
 from datetime import timedelta
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Concatenate, Conv1D, GlobalAveragePooling1D, \

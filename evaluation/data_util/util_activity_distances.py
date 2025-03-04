@@ -21,7 +21,7 @@ def get_alphabet(log: List[List[str]]) -> List[str]:
     return list(unique_activities)
 
 
-def get_activity_distance_matrix_dict_list(args):
+def get_normalized_activity_distance_matrix_dict_list(args):
     log_control_flow_perspective, activity_distance_function, alphabet = args
 
     n_gram_size_bose_2009 = 3
