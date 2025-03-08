@@ -10,7 +10,33 @@ def get_act2vec_distance_matrix(log, alphabet, sg = 0):
     #model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=9, min_count=0, alpha=0.025, min_alpha=0.005, epochs=10, sg=sg)
 
     #act2vev paper
-    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=3, min_count=0, alpha=0.025, min_alpha=0.005, epochs=10, sg=sg)
+    #model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=3, min_count=0, alpha=0.025, min_alpha=0.005, epochs=10, sg=sg)
+
+    '''  original code gensim version prob https://github.com/piskvorky/gensim/blob/3.4.0/gensim/models/word2vec.py 
+    model = gensim.models.Word2Vec(sentences=log, size= vectorsize, window=3,  min_count=0)
+    nrEpochs= 10
+    for epoch in range(nrEpochs):
+        if epoch % 2 == 0:
+            print ('Now training epoch %s'%epoch)
+        model.train(sentences,len(sentences),start_alpha=0.025, epochs=nrEpochs)
+        model.alpha -= 0.002  # decrease the learning rate
+        model.min_alpha = model.alpha  # fix the learning rate, no decay
+    '''
+    # Initialize model
+    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=3, min_count=0, workers=4)
+
+    nrEpochs = 10
+    alpha = 0.025
+    min_alpha = 0.0001  # Minimum learning rate
+
+    # Training loop with manual learning rate adjustment
+    for epoch in range(nrEpochs):
+        alpha = alpha - 0.002
+
+        model.train(log, total_examples=model.corpus_count, epochs=nrEpochs, start_alpha=0.025)
+
+        model.alpha -= 0.002  # Set new learning rate
+        model.min_alpha = model.alpha  # Prevent further decay
 
     ''' 
     if random.randint(1,100) == 1:

@@ -71,10 +71,10 @@ for log_name, stats in log_statistics.items():
 df = pd.DataFrame(data, columns=["Log", "Activity", "Relative Position"])
 
 num_logs = len(df["Log"].unique())
-ncols = 7  # Two plots per row
-nrows = (num_logs + ncols - 1) // ncols  # Calculate number of rows needed
+ncols = 4  # Two plots per row
+nrows = 1  # Calculate number of rows needed
 
-fig, axes = plt.subplots(nrows, ncols, figsize=(34, 5 * nrows))  # Adjust figure size
+fig, axes = plt.subplots(nrows, ncols, figsize=(20, max(5, 5 * nrows)), constrained_layout=True)
 axes = axes.flatten()  # Flatten axes array for easy iteration
 
 for i, (ax, (log_name, log_data)) in enumerate(zip(axes, df.groupby("Log"))):
@@ -97,7 +97,7 @@ for i, (ax, (log_name, log_data)) in enumerate(zip(axes, df.groupby("Log"))):
     if row == nrows - 1:
         ax.set_xlabel("Five most frequent activities", fontsize=20)
     else:
-        ax.set_xlabel("")
+        ax.set_xlabel("Five most frequent activities", fontsize=20)
 
     # Hide x-axis activity labels for all plots
     ax.set_xticklabels([])
@@ -110,6 +110,6 @@ for i, (ax, (log_name, log_data)) in enumerate(zip(axes, df.groupby("Log"))):
 for j in range(i + 1, len(axes)):
     fig.delaxes(axes[j])
 
-plt.tight_layout()
-plt.savefig("activity_positions_all_logs_boxplots.pdf", format="pdf", transparent=True)
+fig.subplots_adjust(hspace=0.3)  # Reduce vertical spacing between subplots
+plt.savefig("activity_positions_selected_logs_boxplots.pdf", format="pdf", transparent=True)
 plt.show()
