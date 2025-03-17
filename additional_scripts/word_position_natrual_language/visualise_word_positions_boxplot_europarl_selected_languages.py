@@ -9,6 +9,7 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import europarl_raw
 from matplotlib import rc
 import numpy as np
+from definitions import ROOT_DIR
 
 # Set LaTeX-style fonts
 rc('text', usetex=True)
@@ -17,24 +18,59 @@ rc('font', **{'family': 'serif', 'serif': ['Times']})
 # Ensure necessary NLTK data is available
 nltk.download("punkt")
 nltk.download("stopwords")
-nltk.download('europarl_raw')
+#nltk.download('europarl_raw')
 
 # Define supported languages
 languages = [
-    "danish", "dutch", "english", "finnish", "french", "german",
-    "greek", "italian", "portuguese", "spanish", "swedish"
+      "english",
+    "greek"
 ]
 
 # Load the corpora for each language using europarl_raw
-corpus = {lang: getattr(europarl_raw, lang).raw() for lang in languages}
+#corpus = {lang: getattr(europarl_raw, lang).raw() for lang in languages}
+
+def read_europarl_dataset(lang):
+    if lang == "danish":
+        file_name = "europarl-v7.da-en.da"
+    elif lang == "dutch":
+        file_name = "europarl-v7.nl-en.nl"
+    elif lang == "english":
+        file_name = "europarl-v7.de-en.en"
+    elif lang == "finnish":
+        file_name = "europarl-v7.fi-en.fi"
+    elif lang == "french":
+        file_name = "europarl-v7.fr-en.fr"
+    elif lang == "german":
+        file_name = "europarl-v7.de-en.de"
+    elif lang == "greek":
+        file_name = "europarl-v7.el-en.el"
+    elif lang == "italian":
+        file_name = "europarl-v7.it-en.it"
+    elif lang == "portuguese":
+        file_name = "europarl-v7.pt-en.pt"
+    elif lang == "spanish":
+        file_name = "europarl-v7.es-en.es"
+    elif lang == "swedish":
+        file_name = "europarl-v7.sv-en.sv"
+
+    file_path = os.path.join(ROOT_DIR, "additional_scripts", "word_position_natrual_language", "europarl_dataset", file_name)
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        text = file.read()
+    return text
 
 # Function to preprocess text
 def preprocess_text(text):
+    #tokenzier
     sentences = text.strip().split("\n")  # Split sentences using line breaks
     print(len(sentences))
     return [[word for word in word_tokenize(sentence.lower()) if word.isalnum()] for sentence in sentences]
 
+#words = word_tokenize(text.lower())  # Tokenize the text and convert to lowercase
+#return [word for word in words if word.isalnum()]
+
 # Function to compute relative word positions
+# Compute relative positions
 def compute_relative_positions(traces, lang, with_stop_words):
     all_words = [word for trace in traces for word in trace]
     if with_stop_words:
@@ -48,7 +84,6 @@ def compute_relative_positions(traces, lang, with_stop_words):
                 del word_counts[word]  # Remove stop words from Counter
 
     top_words = [word for word, _ in word_counts.most_common(20)]
-    print(top_words)
     word_positions = {word: [] for word in top_words}
 
     for trace in traces:
@@ -59,18 +94,12 @@ def compute_relative_positions(traces, lang, with_stop_words):
                 word_positions[word].append(relative_pos)
 
     return word_positions
-
 # Process each language and prepare data for plotting
 data = []
 for lang in languages:
     print(lang)
-    if lang == "german":
-        print("a")
-    if not corpus[lang]:
-        continue
-    sentences = preprocess_text(corpus[lang])
+    sentences = preprocess_text(read_europarl_dataset(lang))
     relative_positions = compute_relative_positions(sentences, lang, with_stop_words=True)
-
     # Data for all words
     data_all = [(lang, "All Words", word, pos) for word, positions in relative_positions.items() for pos in positions]
 
@@ -84,11 +113,11 @@ for lang in languages:
 df = pd.DataFrame(data, columns=["Language", "Type", "Word", "Relative Position"])
 
 # Set up number of columns and rows for the plot grid
-ncols = 6  # 4 columns
+ncols = 4  # 4 columns
 nrows = (len(languages) * 2 + ncols - 1) // ncols  # Two plots per language (all words + filtered)
 
-#fig, axes = plt.subplots(nrows, ncols, figsize=(20, 5 * nrows))  # Adjust figure size
-fig, axes = plt.subplots(nrows, ncols, figsize=(26, 4 * nrows))  # Adjust figure size
+fig, axes = plt.subplots(nrows, ncols, figsize=(20, 5 * nrows))  # Adjust figure size
+#fig, axes = plt.subplots(nrows, ncols, figsize=(26, 5 * nrows))  # Adjust figure size
 
 axes = axes.flatten()  # Flatten axes array for easy iteration
 
@@ -151,5 +180,5 @@ for j in range(i + 1, len(axes)):
     fig.delaxes(axes[j])
 
 plt.tight_layout()
-plt.savefig("word_positions_all_languages_boxplots.pdf", format="pdf", transparent=True)
+plt.savefig("word_positions_selected_languages_boxplots.pdf", format="pdf", transparent=True)
 plt.show()

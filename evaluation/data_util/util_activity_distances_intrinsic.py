@@ -14,6 +14,8 @@ import pandas as pd
 from definitions import ROOT_DIR
 import sys
 from itertools import combinations
+import pickle
+import os
 
 
 def get_log_control_flow_perspective(log):
@@ -42,6 +44,8 @@ def reservoir_sampling(iterator, sample_size):
 
 
 def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int, sample_size: int):
+    activity_dict = {i: activity for i, activity in enumerate(alphabet)}
+    id_set = set(activity_dict.keys())
     alphabet_len = len(alphabet)
     alphabet_len_minus_one = alphabet_len -1
     sampled_combinations = set()
@@ -52,11 +56,19 @@ def get_activities_to_replace(alphabet: List[str], different_activities_to_repla
             activity_index_set.add(random.randint(0, alphabet_len_minus_one))
         activity_index_list = list(activity_index_set)
         activity_index_list.sort()
+        activity_index_set_frozen = frozenset(activity_index_list)
+        """
         acitvity_list = list()
         for index in activity_index_list:
             acitvity_list.append(alphabet[index])
-        sampled_combinations.add(tuple(acitvity_list))
-    return sampled_combinations
+        """
+        sampled_combinations.add(activity_index_set_frozen)
+
+    # Convert set of frozenset to list of tuples
+    sampled_combinations_id_list = [tuple(sampled_combination) for sampled_combination in sampled_combinations]
+    # Convert IDs in tuples to corresponding values from alphabet_dict
+    sampled_combinations_list = [tuple(activity_dict[i] for i in tpl) for tpl in sampled_combinations_id_list]
+    return sampled_combinations_list
 
 
 def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_list, log_control_flow_perspective,
@@ -98,20 +110,20 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
             replaced_activity_i = replaced_activity + ':' + str(i)
             # Collect all similarity scores for the current replaced_activity
             distances = []
+            if replaced_activity_i in similarity_scores_of_activities:
+                for activity in similarity_scores_of_activities[replaced_activity_i]:
+                    if activity != replaced_activity_i:
+                        distances.append((activity, similarity_scores_of_activities[replaced_activity_i][activity]))
 
-            for activity in similarity_scores_of_activities[replaced_activity_i]:
-                if activity != replaced_activity_i:
-                    distances.append((activity, similarity_scores_of_activities[replaced_activity_i][activity]))
+                if len(distances) > 0:
+                    # Sort distances by the similarity score (distance)
+                    distances.sort(key=lambda x: x[1], reverse=reverse)
 
-            if len(distances) > 0:
-                # Sort distances by the similarity score (distance)
-                distances.sort(key=lambda x: x[1], reverse=reverse)
+                    # Get the top n nearest neighbors
+                    nearest_neighbors = [activity for activity, _ in distances[:n]]
 
-                # Get the top n nearest neighbors
-                nearest_neighbors = [activity for activity, _ in distances[:n]]
-
-                # Store the nearest neighbors in the dictionary
-                neighbors[replaced_activity_i] = nearest_neighbors
+                    # Store the nearest neighbors in the dictionary
+                    neighbors[replaced_activity_i] = nearest_neighbors
 
     return neighbors
 
@@ -341,3 +353,34 @@ def get_normalized_similarity_scores_of_activities(similarity_scores_of_activiti
     }
 
     return normalized_data
+
+def save_results(results, log_name, activity_distance_function, different_activities_to_replace_count, activities_to_replace_with_count, sampling_size):
+    file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
+    path_to_file = os.path.join(
+        ROOT_DIR, "evaluation", "evaluation_of_activity_distances",
+        "intrinsic_evaluation", "results", log_name, activity_distance_function, file_name
+    )
+
+    # Ensure the directory exists before saving
+    os.makedirs(os.path.dirname(path_to_file), exist_ok=True)  # Create all missing directories
+
+    # Save results
+    with open(path_to_file, "wb") as f:
+        pickle.dump(results, f)
+
+
+def load_results(log_name, activity_distance_function, different_activities_to_replace_count, activities_to_replace_with_count, sampling_size):
+
+    file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
+
+    path_to_file = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances",
+                                "intrinsic_evaluation",
+                                "results", log_name, activity_distance_function, file_name)
+
+    # Check if the file exists and load it
+    if os.path.exists(path_to_file):
+        with open(path_to_file, "rb") as f:
+            return pickle.load(f)
+    else:
+        return None
+

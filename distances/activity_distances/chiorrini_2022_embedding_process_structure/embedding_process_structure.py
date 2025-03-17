@@ -1,26 +1,23 @@
-import pm4py
-from pm4py.objects.petri_net.importer import importer as pnml_import
-from pm4py.objects.conversion.wf_net import converter as wf_net_converter
-import pm4py.objects.process_tree.utils.generic as generic
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.configuration import import_path, file_print
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.model_feature import p_length, optionality, parallelism
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.tree_feature import make_visible, feature_map
+import os
 import time
+
 import numpy as np
+import pm4py
+import pm4py.objects.process_tree.utils.generic as generic
+from pm4py.objects.conversion.wf_net import converter as wf_net_converter
 from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.util.xes_constants import DEFAULT_NAME_KEY
-from pm4py.objects.log.exporter.xes import exporter as xes_exporter
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.new_parallelism import newparallelism, new_parallelism_pathlength
-from io import StringIO, BytesIO
-from pm4py.objects.petri_net.exporter.exporter import apply as export_pnml
-from pm4py.objects.petri_net.importer.importer import apply as import_pnml
-import os
+
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.model_feature import optionality
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.new_parallelism_and_pathlength import \
+    newparallelism, new_parallelism_pathlength, new_pathlength
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.tree_feature import make_visible, \
+    feature_map
+from distances.activity_distances.data_util.algorithm import get_cosine_distance_dict
 
 
 def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
-
     event_log = EventLog()
-
     # Transform the list of traces into an EventLog object
     for trace_id, trace in enumerate(log):
         pm4py_trace = Trace()
@@ -35,14 +32,13 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
         event_log.append(pm4py_trace)  # Add trace to the event log
 
     process_id = os.getpid()
+
+    start_time = time.time()
+
     # Discover the workflow net
     net_or, im, fm = pm4py.discover_petri_net_inductive(event_log)
-    #pm4py.view_petri_net(net_or, im, fm)
-    net_original_file= f"temp_petri_net_{process_id}.pnml"
-
+    net_original_file = f"temp_petri_net_{process_id}.pnml"
     pm4py.write_pnml(net_or, im, fm, net_original_file)
-
-
     net_modified_file = net_original_file.replace(".pnml", "_visible.pnml")
 
     with open(net_original_file) as infile:
@@ -56,17 +52,11 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
     os.remove(net_original_file)
     os.remove(net_modified_file)
 
-
     tree = wf_net_converter.apply(net, initial_marking, final_marking)
-
-    start_time = time.time()
-
-    #pm4py.view_process_tree(tree)
     tree_2 = generic.fold(tree)
-    #pm4py.view_process_tree(tree_2)
 
     op = tree_2._get_operator()
-    #curr_features = (1, 1, 0, 0)
+    # curr_features = (1, 1, 0, 0)
     ris = feature_map(tree_2)
 
     out = {}
@@ -75,79 +65,45 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
             l = name.label
             out[l] = ris[name]
 
-
-    # feature indices
+    start = time.time()
+    # Feature indices
     id_par = 0
     id_opt = 1
     id_sloop = 2
     id_lloop = 3
 
-    t1 = time.time()
-    path_l = p_length(out, net_or, im)
-    t2 = time.time()
-    t_dist = round(t2 - t1, 2)
-    #print("Path Length elaboration time: ", t_dist)
+    path_l = new_pathlength(tree_2)
 
+    # Measure optionality computation time
     opt = optionality(out, id_opt)
-    t3 = time.time()
-    t_opt = round(t3 - t2, 2)
-    #print("Optionality, elaboration time: ", t_opt)
 
+    # Measure new parallelism computations
     new_parallelism_pathlength_dict = new_parallelism_pathlength(tree_2)
-
     newparallelism_dict = newparallelism(tree_2)
 
-    #paral_mod = parallelism(tree_2, net, out, id_par)
-    t4 = time.time()
-    t_par = round(t4 - t3, 2)
-    #print("Parallelism, elaboration time: ", t_par)
-
+    # Features computation
     features = {}
-    #print()
-    #print("Activities features: ")
-    #"name activity;path length;optionality;par path length;parallelism;strectly loopable;long loopable;"
     for elem in out:
-        if 'tau' in elem or "Inv" in elem: #or 'END' in elem or 'START' in elem:
+        if 'tau' in elem or "Inv" in elem:
             continue
-        #print(elem)
-        # ASUBMITTED
-        #if elem == "ASUBMITTED" or elem == "APARTLYSUBMITTED":
-        #    print("a")
+
         m = []
-        if elem in path_l:
-            m.append(path_l[elem])
-        else:
-            m.append(0)
-        if elem in opt:
-            m.append(opt[elem])
-        else:
-            m.append(1)
-        if elem in new_parallelism_pathlength_dict:
-            m += [new_parallelism_pathlength_dict[elem]]
-        else:
-            m += [0]
-        if elem in newparallelism_dict:
-            m += [newparallelism_dict[elem]]
-        else:
-            m += [0]
+        m.append(path_l.get(elem, 0))
+        m.append(opt.get(elem, 1))
+        m.append(new_parallelism_pathlength_dict.get(elem, 0))
+        m.append(newparallelism_dict.get(elem, 0))
         m.append(out[elem][id_sloop])
         m.append(out[elem][id_lloop])
 
-        np_m = np.array(m)
-        features[elem] = np_m
+        features[elem] = np.array(m)
 
-    #print(features)
-    distances = {}
-    for activity1 in alphabet:
-        for activity2 in alphabet:
-            distance = cosine_distance(features[activity1], features[activity2])
-            distances[(activity1, activity2)] = distance
+    # Compute distances
+    distances = get_cosine_distance_dict(features)
 
     if take_time is False:
-        return distances
+        return distances, features
     else:
         return time.time() - start_time
-
 
 
 def cosine_distance(array1, array2):
@@ -163,5 +119,3 @@ def cosine_distance(array1, array2):
 
     # Compute cosine distance
     return 1 - cosine_similarity
-
-

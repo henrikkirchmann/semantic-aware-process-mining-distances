@@ -1,5 +1,6 @@
 import networkx as nx
 # NOTE: use original net
+import time
 
 
 def create_graph(net):
@@ -13,17 +14,34 @@ def create_graph(net):
     return G
 
 
+import time
+import networkx as nx
+
+
 def long_path(G, s, t_list):
-    act_list = []
-    for t in t_list:
-        act_list.append(t.label)
+    timing = {}  # Dictionary to store execution times
 
+    # Start timing
+    t1 = time.time()
+    act_list = [t.label for t in t_list]  # Extract labels
+    t2 = time.time()
+    timing["Extract Activity Labels"] = round(t2 - t1, 4)
+
+    # Initialize longest path dictionary
     longest = {}
-    for t in t_list:
-        if t.label in longest.keys():
-            continue
-        path = nx.all_simple_paths(G, source=s, target=t.name)
+    t3 = time.time()
 
+    for t in t_list:
+        if t.label in longest:
+            continue
+
+        # Find all simple paths from source to target
+        t4 = time.time()
+        path = nx.all_simple_paths(G, source=s, target=t.name)
+        t5 = time.time()
+        timing["Find Paths for " + t.name] = round(t5 - t4, 4)  # Log time for each transition
+
+        # Process each path
         for n in path:
             count = 0
             for node in n:
@@ -32,31 +50,69 @@ def long_path(G, s, t_list):
                     if not lab or 'tau' in lab or 'Inv' in lab:
                         continue
                     count += 1
-                else:
-                    continue
-                if lab not in longest.keys() and lab in act_list:
-                    longest[lab] = count
-                elif lab in longest.keys() and longest[lab] < count:
-                    longest[lab] = count
-                else:
-                    continue
+
+                # Update longest path dictionary
+                if lab in act_list:
+                    if lab not in longest or longest[lab] < count:
+                        longest[lab] = count
+
+    t6 = time.time()
+    timing["Processing Paths and Updating Dictionary"] = round(t6 - t3, 4)
+
+    # Print time analysis
+    #print("\nExecution Time Analysis for long_path:")
+    #for key, value in timing.items():
+    #    print(f"{key}: {value:.4f} seconds")
+
+    # Find the longest step
+    longest_step = max(timing, key=timing.get)
+    #print(f"\nLongest Step: {longest_step} took {timing[longest_step]:.4f} seconds")
+
     return longest
 
 
 def p_length(out, net, im):
-    G = create_graph(net)
-    s = im.popitem()[0].name  # place's name of initial marking
+    timing = {}  # Dictionary to store execution times
 
-    longest = long_path(G, s, net.transitions)
-    longest_path = max(longest.values())
+    t1 = time.time()
+    G = create_graph(net)  # Create graph
+    t2 = time.time()
+    timing["Graph Creation"] = round(t2 - t1, 4)
+
+    t3 = time.time()
+    s = im.popitem()[0].name  # Get initial marking place name
+    t4 = time.time()
+    timing["Extract Initial Marking"] = round(t4 - t3, 4)
+
+    t5 = time.time()
+    longest = long_path(G, s, net.transitions)  # Compute longest path
+    t6 = time.time()
+    timing["Longest Path Computation"] = round(t6 - t5, 4)
+
+    t7 = time.time()
+    longest_path = max(longest.values())  # Get max longest path
+    t8 = time.time()
+    timing["Max Longest Path"] = round(t8 - t7, 4)
 
     length_dict = {}
+    t9 = time.time()
     for elem in out:
         if 'Inv' in elem or 'tau' in elem:
             length_dict[elem] = 0
             continue
         position = longest[elem]
         length_dict[elem] = round(position / longest_path, 4)
+    t10 = time.time()
+    timing["Normalization Loop"] = round(t10 - t9, 4)
+
+    # Print time analysis
+    #print("\nExecution Time Analysis for p_length:")
+    #for key, value in timing.items():
+    #    print(f"{key}: {value:.4f} seconds")
+
+    # Find the longest step
+    longest_step = max(timing, key=timing.get)
+    #print(f"\nLongest Step: {longest_step} took {timing[longest_step]:.4f} seconds")
 
     return length_dict
 

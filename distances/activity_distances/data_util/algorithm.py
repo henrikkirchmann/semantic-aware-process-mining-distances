@@ -1,8 +1,12 @@
 import os
+from math import floor, ceil
 from typing import List
 from definitions import ROOT_DIR
 import csv
 from datetime import datetime, timedelta
+from collections import defaultdict
+from typing import List, Tuple, Dict
+import numpy as np
 
 #Given Pm4py Event Log, return List of Lists of Activities (List of Traces)
 def give_log_padding(log, ngram_size):
@@ -10,13 +14,10 @@ def give_log_padding(log, ngram_size):
     for trace in log:
         log_list.append(list())
     i = 0
-    middle_index = ngram_size // 2 + 1
-    if middle_index % 2 == 1:
-        padding_left = ["."]*(ngram_size-middle_index)
-        padding_right = padding_left
-    else:
-        padding_left = ["."]*(ngram_size-middle_index + 1)
-        padding_right = ["."]*(ngram_size-middle_index)
+    padding_left_size =  floor((ngram_size - 1) / 2)
+    padding_right_size = ceil((ngram_size - 1) / 2)
+    padding_left = ["."]*(padding_left_size)
+    padding_right = ["."]*(padding_right_size)
     for trace in log:
         #adjust for different ngram size
         log_list[i].extend(padding_left)
@@ -51,4 +52,51 @@ def transform_control_flow_lists_to_csv(control_flow_lists):
     return output_file
 
 
+def get_ngrams_dict(log: List[List[str]], ngram_size: int) -> Dict[Tuple[str, ...], int]:
+    ngrams_dict = defaultdict(int)  # Using defaultdict to handle counting
+    for sublist in log:
+        for i in range(len(sublist) - ngram_size + 1):
+            ngram = tuple(sublist[i:i + ngram_size])  # Convert the n-gram to a tuple to use as a dictionary key
+            ngrams_dict[ngram] += 1  # Increment the count for this n-gram
 
+    return dict(ngrams_dict)  # Convert back to a regular dictionary if desired
+
+
+def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[Tuple[str, ...], int]]:
+    context_dict = defaultdict(lambda: defaultdict(int))  # Nested defaultdict for context frequencies
+
+    for ngram, count in ngrams_dict.items():
+        middle_index = len(ngram) // 2
+        middle_gram = ngram[middle_index]
+        # Create context by removing the middle element
+        context_before = ngram[:middle_index]
+        context_after = ngram[middle_index + 1:]
+        surrounding_grams = context_before + context_after
+
+        context_dict[middle_gram][surrounding_grams] += count
+
+    return {k: dict(v) for k, v in context_dict.items()}  # Convert inner defaultdicts to regular
+
+def get_cosine_distance_dict(embeddings):
+
+    # Compute distances
+    distances = {}
+    for activity1 in embeddings.keys():
+        for activity2 in embeddings.keys():
+            distance = cosine_distance(embeddings[activity1], embeddings[activity2])
+            distances[(activity1, activity2)] = distance
+    return distances
+
+def cosine_distance(array1, array2):
+    # Compute the dot product and magnitudes
+    dot_product = np.dot(array1, array2)
+    magnitude1 = np.linalg.norm(array1)
+    magnitude2 = np.linalg.norm(array2)
+
+    # Compute cosine similarity
+    if magnitude1 == 0 or magnitude2 == 0:  # Handle zero vectors
+        return 1.0  # Maximum cosine distance for orthogonal vectors
+    cosine_similarity = dot_product / (magnitude1 * magnitude2)
+
+    # Compute cosine distance
+    return 1 - cosine_similarity

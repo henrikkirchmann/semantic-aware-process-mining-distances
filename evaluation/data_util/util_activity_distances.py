@@ -1,17 +1,24 @@
-from collections import defaultdict
-from typing import List
-import sys
-import psutil
-import math
-from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
-    get_substitution_and_insertion_scores
-from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
 import gc
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import get_embedding_process_structure_distance_matrix
-from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import get_context_based_distance_matrix
+import math
 import os
 import shutil
+import sys
+from collections import defaultdict
+from typing import List
+
+import psutil
+
 from definitions import ROOT_DIR
+from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import \
+    get_activity_activity_co_occurence_matrix
+from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
+    get_substitution_and_insertion_scores
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import \
+    get_embedding_process_structure_distance_matrix
+from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import \
+    get_context_based_distance_matrix
+from distances.activity_distances.activity_context_frequency.activity_contex_frequency import get_activity_context_frequency_matrix
 
 def get_alphabet(log: List[List[str]]) -> List[str]:
     unique_activities = set()
@@ -63,7 +70,7 @@ def get_activity_distance_matrix(log_control_flow_perspective, activity_distance
 
 
 def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_replaced_activities_dict,
-                                      n_gram_size_bose_2009=3):
+                                      ngram_size=3):
     activity_distance_matrix_dict = defaultdict(lambda: defaultdict())
     for activity_distance_function in activity_distance_functions:
         if "Bose 2009 Substitution Scores" == activity_distance_function:
@@ -72,7 +79,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                     logs_with_replaced_activities_dict[key],
                     get_alphabet(
                         logs_with_replaced_activities_dict[
-                            key]), n_gram_size_bose_2009)
+                            key]), ngram_size)
                 activity_distance_matrix_dict[activity_distance_function][key] = activity_distance_matrix
         elif "De Koninck 2018 act2vec" == activity_distance_function[:23]:
             if activity_distance_function[24:] == "CBOW":
@@ -86,36 +93,83 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                 activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
         elif "Unit Distance" == activity_distance_function:
             for key in logs_with_replaced_activities_dict:
-                unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key], get_alphabet(
-                                                                          logs_with_replaced_activities_dict[key]))
+                unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key],
+                                                                              get_alphabet(
+                                                                                  logs_with_replaced_activities_dict[
+                                                                                      key]))
                 activity_distance_matrix_dict[activity_distance_function][key] = unit_distance_matrix
         elif "Chiorrini 2022 Embedding Process Structure" == activity_distance_function:
             for key in logs_with_replaced_activities_dict:
-                embedding_process_structure_distance_matrix = get_embedding_process_structure_distance_matrix(logs_with_replaced_activities_dict[key],
-                                                                      get_alphabet(
-                                                                          logs_with_replaced_activities_dict[key]), False)
-                activity_distance_matrix_dict[activity_distance_function][key] = embedding_process_structure_distance_matrix
+                embedding_process_structure_distance_matrix, embedding = get_embedding_process_structure_distance_matrix(
+                    logs_with_replaced_activities_dict[key],
+                    get_alphabet(
+                        logs_with_replaced_activities_dict[key]), False)
+                activity_distance_matrix_dict[activity_distance_function][
+                    key] = embedding_process_structure_distance_matrix
         elif "Gamallo Fernandez 2023 Context Based" == activity_distance_function:
             for key in logs_with_replaced_activities_dict:
                 embedding_process_structure_distance_matrix = get_context_based_distance_matrix(
                     logs_with_replaced_activities_dict[key])
                 activity_distance_matrix_dict[activity_distance_function][
                     key] = embedding_process_structure_distance_matrix
+        elif "Activity-Activitiy Co Occurrence Bag Of Words" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                activity_distance_matrix_dict[activity_distance_function][
+                    key], embedding = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
+                                                                                get_alphabet(
+                                                                                    logs_with_replaced_activities_dict[
+                                                                                        key]), ngram_size, True)
+        elif "Activity-Activitiy Co Occurrence N-Gram" == activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                activity_distance_matrix_dict[activity_distance_function][
+                    key], embedding = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
+                                                                                get_alphabet(
+                                                                                    logs_with_replaced_activities_dict[
+                                                                                        key]), ngram_size, False)
+        elif "Activity-Context Bag Of Words" in activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                activity_distance_matrix_dict[activity_distance_function][
+                    key], embedding, activity_freq_dict, context_freq_dict, context_index  = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
+                                                                                get_alphabet(
+                                                                                    logs_with_replaced_activities_dict[
+                                                                                        key]), ngram_size, 2)
+                #if "PMI" in activity_distance_function:
+
+
+        elif "Activity-Context Bag of Words as N-Grams" in activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                activity_distance_matrix_dict[activity_distance_function][
+                    key], embedding, activity_freq_dict, context_freq_dict, context_index = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
+                                                                                get_alphabet(
+                                                                                    logs_with_replaced_activities_dict[
+                                                                                        key]), ngram_size, 1)
+        elif "Activity-Context N-Grams" in activity_distance_function:
+            for key in logs_with_replaced_activities_dict:
+                activity_distance_matrix_dict[activity_distance_function][
+                    key], embedding, activity_freq_dict, context_freq_dict, context_index = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
+                                                                                get_alphabet(
+                                                                                    logs_with_replaced_activities_dict[
+                                                                                        key]), ngram_size, 0)
+
+
+
+
+
     return dict(activity_distance_matrix_dict)
 
 
 def get_log_control_flow_perspective_with_short_activity_names(log_control_flow_perspective, alphabet):
-    activity_names_dict = dict()
+    short_activity_names_dict = dict()
     i = 0
     for activity in alphabet:
-        activity_names_dict[activity] = str(i)
+        short_activity_names_dict[activity] = str(i)
         i += 1
     for trace in log_control_flow_perspective:
         i = 0
         for activity in trace:
-            trace[i] = activity_names_dict[activity]
+            trace[i] = short_activity_names_dict[activity]
             i += 1
-    return log_control_flow_perspective
+    return log_control_flow_perspective, short_activity_names_dict
 
 
 def get_obj_size(obj):
@@ -160,8 +214,8 @@ def unresponsiveness_prediction(log_size, alphabet_size, r, w, sampling_size=Non
             inner_sum += combination * log_size
         total_sum += inner_sum
 
-    if total_sum > free_memory/2:
-        #print("System might run out of memory.")
+    if total_sum > free_memory / 2:
+        # print("System might run out of memory.")
         return True
     else:
         return False
@@ -200,14 +254,15 @@ def get_unit_cost_activity_distance_matrix(log, alphabet):
                 distances[(activity1, activity2)] = 1
     return distances
 
+
 def delete_temporary_files():
     folder_path = ROOT_DIR + "/evaluation/evaluation_of_activity_distances/modles"
     try:
         if os.path.exists(folder_path):  # Check if folder exists
             shutil.rmtree(folder_path)
-            print("Folder deleted successfully.")
-        else:
-            print("Folder does not exist.")
+            # print("Folder deleted successfully.")
+        # else:
+        # print("Folder does not exist.")
     except Exception as e:
         print(f"Error: {e}")
 
@@ -215,12 +270,8 @@ def delete_temporary_files():
     try:
         if os.path.exists(folder_path):  # Check if folder exists
             shutil.rmtree(folder_path)
-            print("Folder deleted successfully.")
-        else:
-            print("Folder does not exist.")
+            # print("Folder deleted successfully.")
+        # else:
+        # print("Folder does not exist.")
     except Exception as e:
         print(f"Error: {e}")
-
-
-
-

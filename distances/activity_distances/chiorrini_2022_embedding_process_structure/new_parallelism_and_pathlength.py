@@ -1,3 +1,4 @@
+import pm4py
 from pm4py.objects.process_tree import obj as pt_opt
 from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.objects.process_tree import obj as pt_opt
@@ -6,10 +7,15 @@ from pm4py.objects.process_tree.obj import ProcessTree
 from pm4py.objects.process_tree.utils import generic as pt_util
 from tensorflow.python.keras.saving.saved_model_experimental import sequential
 from itertools import product, permutations
+from collections import Counter
+import time
+from itertools import product, chain
+from collections import defaultdict
+from collections import deque
 
 '''
 Re-Implementation of Parallelism & Parallelism Path Length Feature, 
-because original implementation works only with their given Petrinets.
+because original implementation works only with their given Petrinets, and runtime performance needed improvements.
 '''
 
 class GenerationTree(ProcessTree):
@@ -99,71 +105,88 @@ def collect_number_of_parallel_branches(process_tree):
                 parallelism_feature_dict[n.label] = 1 - (1 / n.number_of_parallel_branches)
     return parallelism_feature_dict
 
+def filter_taus_remove_duplicate_traces(trace_list):
+    """
+    Remove None values from sublists and eliminate duplicate traces while preserving order.
+
+    :param trace_list: List of lists (traces) to process.
+    :return: A list of unique sublists with None values removed.
+    """
+    # Remove None values and store as tuples to ensure hashability
+    processed_traces = [tuple(filter(None, sublist)) for sublist in trace_list]
+
+    # Remove duplicates while maintaining order
+    unique_traces = list(dict.fromkeys(processed_traces))
+
+    # Convert back to lists
+    return [list(trace) for trace in unique_traces]
+
+
+def new_pathlength(process_tree):
+    pathlength_dict = {}
+    trace_list = get_sub_traces(process_tree)
+
+    # Find the longest sublist length
+    longest_list_length = max(map(len, trace_list), default=1)  # Use `default=1` to avoid ZeroDivisionError
+
+    element_max_indices = {}
+
+    # Compute max index and store final values in pathlength_dict in one pass
+    for sublist in trace_list:
+        for index, element in enumerate(sublist, start=1):  # Start index from 1
+            element_max_indices[element] = max(element_max_indices.get(element, -1), index)
+            pathlength_dict[element] = element_max_indices[element] / longest_list_length  # Store value directly
+
+    return pathlength_dict
+
 
 def new_parallelism_pathlength(process_tree):
-    to_visit = [process_tree]
-    parallelism_pathlength_dict = dict()
-    while len(to_visit) > 0:
-        n = to_visit.pop(0)
+    to_visit = deque([process_tree])  # Use deque for faster pops
+    parallelism_pathlength_dict = {}
+
+    while to_visit:
+        n = to_visit.popleft()  # O(1) operation instead of O(n) pop(0)
+
         if n.operator is pt_opt.Operator.PARALLEL:
-            sub_trace_list = []
-            for child in n.children:
-                sub_trace_list.append(get_sub_traces(child))
+            sub_trace_list = [get_sub_traces(child) for child in n.children]
             parallel_subtrace_list = combine_sublists_sequentially(sub_trace_list)
-            # Initialize variables
+
+            # Find the longest sublist length
+            longest_list_length = max(map(len, parallel_subtrace_list), default=1)  # Avoid division by zero
+
             element_max_indices = {}
-            longest_list_length = max(len(sublist) for sublist in parallel_subtrace_list)
 
-            # Find the largest index for each element across all lists
-            for i, sublist in enumerate(parallel_subtrace_list):
-                for index, element in enumerate(sublist):
-                    # Update the largest index where the element is found
+            # Combine two loops into one
+            for sublist in parallel_subtrace_list:
+                for index, element in enumerate(sublist, start=1):  # Start index from 1 directly
                     element_max_indices[element] = max(element_max_indices.get(element, -1), index)
-
-            # Calculate the values and store them in the dictionary
-            for element, max_index in element_max_indices.items():
-                parallelism_pathlength_dict[element] = max_index / longest_list_length
-
+                    parallelism_pathlength_dict[element] = element_max_indices[element] / longest_list_length  # Store directly
 
         else:
-            for child in n.children:
-                to_visit.append(child)
+            to_visit.extend(n.children)  # More efficient than a loop with append()
+
     return parallelism_pathlength_dict
 
 
 def get_sub_traces(process_tree):
-    sub_trace_list = []
+    """
+    Extract sub-traces from a process tree based on its operator type.
+    """
+    if process_tree.operator is None:
+        return [[process_tree.label]] if process_tree.label else [[]]
+
+    children_traces = [get_sub_traces(child) for child in process_tree.children]
+
     if process_tree.operator is pt_opt.Operator.XOR:
-        for child in process_tree.children:
-            sub_trace_list.extend(get_sub_traces(child))
-        return sub_trace_list
-    elif process_tree.operator is pt_opt.Operator.SEQUENCE:
-        sequential_trace_list = []
-        for child in process_tree.children:
-            sequential_trace_list.append(get_sub_traces(child))
-        sub_trace_list = combine_sublists_sequentially(sequential_trace_list)
-        return sub_trace_list
-    elif process_tree.operator is pt_opt.Operator.PARALLEL:
-        parallel_trace_list = []
-        for child in process_tree.children:
-            parallel_trace_list.append(get_sub_traces(child))
-        sub_trace_list = combine_sublists_sequentially(parallel_trace_list)
-        return sub_trace_list
-    elif process_tree.operator is pt_opt.Operator.LOOP:
-        loop_trace_list = []
-        loop_trace_list.extend(get_sub_traces(process_tree.children[0]))
-        return loop_trace_list
-    elif process_tree.operator is None and process_tree.label is not None:
-        return [[process_tree.label]]
-    elif process_tree.operator is None and process_tree.label is None:
-        return []
+        return [trace for traces in children_traces for trace in traces]  # Flatten once
 
+    if process_tree.operator in {pt_opt.Operator.SEQUENCE, pt_opt.Operator.PARALLEL}:
+        return combine_sublists_sequentially(children_traces)
 
+    if process_tree.operator is pt_opt.Operator.LOOP:
+        return children_traces[0]  # Equivalent to `process_tree.children[0]`
 
-
-
-
-#'''
+    return []  # Default return in case of unexpected operators
 
 
 def flatten_combination(combination):
@@ -186,21 +209,7 @@ def combine_sublists_sequentially(input_list):
     :param input_list: List of lists of lists to process.
     :return: A list of combined sublists.
     """
-    # For each group, take all sublists as they are (no inter-group mixing)
-    groups = [group for group in input_list]
-
-    # Generate all combinations of one sublist from each group
-    all_combinations = product(*groups)
-
-    # Flatten the chosen sublists for each combination
-    result = []
-    for combination in all_combinations:
-        combined = []
-        for sublist in combination:
-            combined.extend(sublist)
-        result.append(combined)
-
-    return result
+    return [list(chain.from_iterable(combination)) for combination in product(*input_list)]
 
 
 def shuffle_two_sequences_preserve_order(seq1, seq2):
