@@ -5,7 +5,7 @@ import shutil
 import sys
 from collections import defaultdict
 from typing import List
-
+import re
 import psutil
 
 from definitions import ROOT_DIR
@@ -16,9 +16,11 @@ from distances.activity_distances.bose_2009_context_aware_trace_clustering.algor
 from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import \
     get_embedding_process_structure_distance_matrix
 from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
+from distances.activity_distances.de_koninck_2018_act2vec.our_hyperparas import get_act2vec_distance_matrix_our
 from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import \
     get_context_based_distance_matrix
 from distances.activity_distances.activity_context_frequency.activity_contex_frequency import get_activity_context_frequency_matrix
+from distances.activity_distances.pmi.pmi import get_activity_context_frequency_matrix_pmi, get_activity_activity_frequency_matrix_pmi
 
 def get_alphabet(log: List[List[str]]) -> List[str]:
     unique_activities = set()
@@ -31,10 +33,8 @@ def get_alphabet(log: List[List[str]]) -> List[str]:
 def get_normalized_activity_distance_matrix_dict_list(args):
     log_control_flow_perspective, activity_distance_function, alphabet = args
 
-    n_gram_size_bose_2009 = 3
-
     get_distance_matrix = get_activity_distance_matrix(log_control_flow_perspective, activity_distance_function,
-                                                       alphabet, n_gram_size_bose_2009)
+                                                       alphabet)
 
     # Step 1: Find the minimum and maximum values
     min_value = min(get_distance_matrix[activity_distance_function].values())
@@ -50,13 +50,13 @@ def get_normalized_activity_distance_matrix_dict_list(args):
     return distance_dict
 
 
-def get_activity_distance_matrix(log_control_flow_perspective, activity_distance_function, alphabet,
-                                 n_gram_size_bose_2009=3):
+def get_activity_distance_matrix(log_control_flow_perspective, activity_distance_function, alphabet):
+    window_size = 3
     activity_distance_matrix_dict = defaultdict()
     if "Bose 2009 Substitution Scores" == activity_distance_function:
         activity_distance_matrix = get_substitution_and_insertion_scores(
             log_control_flow_perspective,
-            alphabet, n_gram_size_bose_2009)
+            alphabet, window_size)
         activity_distance_matrix_dict[activity_distance_function] = activity_distance_matrix
     elif "De Koninck 2018 act2vec" == activity_distance_function[:23]:
         if activity_distance_function[24:] == "CBOW":
@@ -69,20 +69,22 @@ def get_activity_distance_matrix(log_control_flow_perspective, activity_distance
     return dict(activity_distance_matrix_dict)
 
 
-def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_replaced_activities_dict,
-                                      ngram_size=3):
+def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_replaced_activities_dict):
+
+
     activity_distance_matrix_dict = defaultdict(lambda: defaultdict())
     for activity_distance_function in activity_distance_functions:
-        if "Bose 2009 Substitution Scores" == activity_distance_function:
+        window_size = extract_window_size(activity_distance_function)
+        if activity_distance_function.startswith("Bose 2009 Substitution Scores"):
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix = get_substitution_and_insertion_scores(
                     logs_with_replaced_activities_dict[key],
                     get_alphabet(
                         logs_with_replaced_activities_dict[
-                            key]), ngram_size)
+                            key]), window_size)
                 activity_distance_matrix_dict[activity_distance_function][key] = activity_distance_matrix
-        elif "De Koninck 2018 act2vec" == activity_distance_function[:23]:
-            if activity_distance_function[24:] == "CBOW":
+        elif activity_distance_function.startswith("De Koninck 2018 act2vec"):
+            if "CBOW" in activity_distance_function:
                 sg = 0
             else:
                 sg = 1
@@ -91,7 +93,10 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                                                                       get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]), sg)
                 activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
-        elif "Unit Distance" == activity_distance_function:
+        elif activity_distance_function.startswith("Our act2vec"):
+            activity_distance_matrix_dict[activity_distance_function][key] =get_act2vec_distance_matrix_our(logs_with_replaced_activities_dict[key], get_alphabet(
+                                                                          logs_with_replaced_activities_dict[key]))
+        elif activity_distance_function.startswith("Unit Distance"):
             for key in logs_with_replaced_activities_dict:
                 unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key],
                                                                               get_alphabet(
@@ -106,52 +111,67 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                         logs_with_replaced_activities_dict[key]), False)
                 activity_distance_matrix_dict[activity_distance_function][
                     key] = embedding_process_structure_distance_matrix
-        elif "Gamallo Fernandez 2023 Context Based" == activity_distance_function:
+        elif activity_distance_function.startswith("Gamallo Fernandez 2023 Context Based") == activity_distance_function:
             for key in logs_with_replaced_activities_dict:
                 embedding_process_structure_distance_matrix = get_context_based_distance_matrix(
                     logs_with_replaced_activities_dict[key])
                 activity_distance_matrix_dict[activity_distance_function][
                     key] = embedding_process_structure_distance_matrix
-        elif "Activity-Activitiy Co Occurrence Bag Of Words" == activity_distance_function:
+        elif activity_distance_function.startswith("Activity-Activitiy Co Occurrence Bag Of Words"):
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
-                    key], embedding = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
+                    key], embedding, activity_freq_dict, activity_index = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
                                                                                 get_alphabet(
                                                                                     logs_with_replaced_activities_dict[
-                                                                                        key]), ngram_size, True)
-        elif "Activity-Activitiy Co Occurrence N-Gram" == activity_distance_function:
+                                                                                        key]), window_size, True)
+                if "PMI" in activity_distance_function:
+                    activity_distance_matrix_dict[activity_distance_function][
+                        key], embedding = get_activity_activity_frequency_matrix_pmi(embedding, activity_freq_dict, activity_index)
+
+        elif activity_distance_function.startswith("Activity-Activitiy Co Occurrence N-Gram"):
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
-                    key], embedding = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
+                    key], embedding, activity_freq_dict, activity_index = get_activity_activity_co_occurence_matrix(logs_with_replaced_activities_dict[key],
                                                                                 get_alphabet(
                                                                                     logs_with_replaced_activities_dict[
-                                                                                        key]), ngram_size, False)
-        elif "Activity-Context Bag Of Words" in activity_distance_function:
+                                                                                        key]), window_size, False)
+                if "PMI" in activity_distance_function:
+                    activity_distance_matrix_dict[activity_distance_function][
+                        key], embedding = get_activity_activity_frequency_matrix_pmi(embedding, activity_freq_dict, activity_index)
+
+        elif activity_distance_function.startswith("Activity-Context Bag Of Words "):
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
                     key], embedding, activity_freq_dict, context_freq_dict, context_index  = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
                                                                                 get_alphabet(
                                                                                     logs_with_replaced_activities_dict[
-                                                                                        key]), ngram_size, 2)
-                #if "PMI" in activity_distance_function:
+                                                                                        key]), window_size, 2)
+                if "PMI" in activity_distance_function:
+                    activity_distance_matrix_dict[activity_distance_function][
+                        key], embedding = get_activity_context_frequency_matrix_pmi(embedding, activity_freq_dict, context_freq_dict, context_index)
 
 
-        elif "Activity-Context Bag of Words as N-Grams" in activity_distance_function:
+        elif "Activity-Context as Bag of Words with N-Grams" in activity_distance_function:
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
                     key], embedding, activity_freq_dict, context_freq_dict, context_index = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
                                                                                 get_alphabet(
                                                                                     logs_with_replaced_activities_dict[
-                                                                                        key]), ngram_size, 1)
+                                                                                        key]), window_size, 1)
+                if "PMI" in activity_distance_function:
+                    activity_distance_matrix_dict[activity_distance_function][
+                        key], embedding = get_activity_context_frequency_matrix_pmi(embedding, activity_freq_dict, context_freq_dict, context_index)
+
         elif "Activity-Context N-Grams" in activity_distance_function:
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
                     key], embedding, activity_freq_dict, context_freq_dict, context_index = get_activity_context_frequency_matrix(logs_with_replaced_activities_dict[key],
                                                                                 get_alphabet(
                                                                                     logs_with_replaced_activities_dict[
-                                                                                        key]), ngram_size, 0)
-
-
+                                                                                        key]), window_size, 0)
+                if "PMI" in activity_distance_function:
+                    activity_distance_matrix_dict[activity_distance_function][
+                        key], embedding = get_activity_context_frequency_matrix_pmi(embedding, activity_freq_dict, context_freq_dict, context_index)
 
 
 
@@ -275,3 +295,9 @@ def delete_temporary_files():
         # print("Folder does not exist.")
     except Exception as e:
         print(f"Error: {e}")
+
+
+def extract_window_size(s):
+    match = re.search(r"w_(\d+)", s)
+    return int(match.group(1)) if match else 3
+

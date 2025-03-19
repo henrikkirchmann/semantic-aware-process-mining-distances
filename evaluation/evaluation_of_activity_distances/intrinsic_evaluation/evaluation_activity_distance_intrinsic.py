@@ -14,7 +14,7 @@ from evaluation.data_util.util_activity_distances_extrinsic import get_sublog_li
 from evaluation.data_util.util_activity_distances_intrinsic import (
     get_log_control_flow_perspective, get_activities_to_replace,
     get_logs_with_replaced_activities_dict,
-    get_knn_dict, get_precision_at_k, save_intrinsic_results, get_triplet, get_diameter, load_results, save_results
+    get_knn_dict, get_precision_at_k, save_intrinsic_results, get_triplet, get_diameter, load_results, save_results, add_window_size_evaluation
 )
 
 
@@ -135,11 +135,10 @@ def intrinsic_evaluation(args):
                 # 2: replace activities
                 logs_with_replaced_activities = dict()
                 logs_with_replaced_activities[activities_to_replace] = logs_with_replaced_activities_dict[activities_to_replace]
-                n_gram_size_bose_2009 = 3
 
                 # 3: Compute distances between activities
                 activity_distance_matrix_dict = get_activity_distance_matrix_dict(
-                    activity_distance_function, logs_with_replaced_activities, n_gram_size_bose_2009
+                    activity_distance_function, logs_with_replaced_activities
                 )
 
                 if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
@@ -147,22 +146,40 @@ def intrinsic_evaluation(args):
                 else:
                     reverse = False  # high values = high distances
 
-                #Average Diameter Distance
-                diameter_list.append(get_diameter(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+                # To store computation times
+                computation_times = {}
 
-                #Precision@w-1
-                w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse,
+                # Measure time for Average Diameter Distance
+                start_time = time.time()
+                diameter_list.append(
+                    get_diameter(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+                computation_times['Average Diameter'] = time.time() - start_time
+
+                # Measure time for Precision@w-1
+                start_time = time.time()
+                w_minus_one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count,
+                                                   reverse,
                                                    activities_to_replace_with_count - 1)
                 precision_at_w_minus_1_dict = get_precision_at_k(w_minus_one_nn_dict, activity_distance_function)
                 precision_at_w_minus_1_list.append(precision_at_w_minus_1_dict[activity_distance_function[0]])
+                computation_times['Precision@w-1'] = time.time() - start_time
 
-                #Nearest Neighbor
+                # Measure time for Nearest Neighbor
+                start_time = time.time()
                 one_nn_dict = get_knn_dict(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, 1)
                 precision_at_1_dict = get_precision_at_k(one_nn_dict, activity_distance_function)
                 precision_at_1_list.append(precision_at_1_dict[activity_distance_function[0]])
+                computation_times['Nearest Neighbor'] = time.time() - start_time
 
-                #Triplet
-                triplet_list.append(get_triplet(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+                # Measure time for Triplet
+                start_time = time.time()
+                triplet_list.append(
+                    get_triplet(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet))
+                computation_times['Triplet'] = time.time() - start_time
+
+                # Print the computation times
+                for key, value in computation_times.items():
+                    print(f"{key}: {value:.4f} seconds")
 
             diameter = sum(diameter_list) / len(diameter_list)
             precision_at_w_minus_1 = sum(precision_at_w_minus_1_list) / len(precision_at_w_minus_1_list)
@@ -190,18 +207,29 @@ if __name__ == '__main__':
     #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+    activity_distance_functions.append("Our act2vec")
     #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
+    activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
+    activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PMI")
     activity_distance_functions.append("Activity-Context Bag Of Words")
-    activity_distance_functions.append("Activity-Context Bag of Words as N-Grams")
+    activity_distance_functions.append("Activity-Context as Bag of Words with N-Grams")
     activity_distance_functions.append("Activity-Context N-Grams")
+    activity_distance_functions.append("Activity-Context Bag Of Words PMI")
+    activity_distance_functions.append("Activity-Context as Bag of Words with N-Grams PMI")
+    activity_distance_functions.append("Activity-Context N-Grams PMI")
+
 
     ##############################################################################
-    r_min = 30
+    r_min = 15
     w = 10
-    sampling_size = 30
-    window_size_list = [3,5,7]
+    sampling_size = 4
+
+    window_size_list = [3,5,7,9]
+
+    activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
+
     print(sampling_size)
     ##############################################################################
     # intrinsic - event logs we want to evaluate
@@ -218,6 +246,7 @@ if __name__ == '__main__':
     # log_list.append("PDC 2017")
     #log_list.append("PDC 2019")
     #log_list.append("BPI Challenge 2017")
+    #log_list.append("BPIC15_1 (1)")
 
     # log_list.append("BPI Challenge 2017")
     #log_list.append("WABO")

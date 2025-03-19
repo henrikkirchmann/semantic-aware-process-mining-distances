@@ -1,7 +1,7 @@
 from distances.activity_distances.data_util.algorithm import give_log_padding, get_ngrams_dict, get_context_dict, get_cosine_distance_dict
 from distances.activity_distances.bose_2009_context_aware_trace_clustering.substitution_scores import get_common_context_dict, get_cooccurrence_counts
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import List, Tuple, Dict
 
 
@@ -41,13 +41,14 @@ def get_activity_embeddings(context_dict):
 
 
 def get_activity_activity_co_occurence_matrix(log, alphabet, ngram_size, bag_of_words ):
+    activity_freq_dict = Counter(word for sublist in log for word in sublist)
     log = give_log_padding(log, ngram_size)
     ngrams_dict = get_ngrams_dict(log, ngram_size)
     context_dict = get_context_dict(ngrams_dict)
     #Line 4
     common_context_dict = get_common_context_dict(context_dict)
 
-    activity_index = {context: i for i, context in enumerate(alphabet)}
+    activity_index = {activity: i for i, activity in enumerate(alphabet)}
 
     # Create embeddings
     embeddings = {}
@@ -69,4 +70,4 @@ def get_activity_activity_co_occurence_matrix(log, alphabet, ngram_size, bag_of_
 
     distance_matrix = get_cosine_distance_dict(embeddings)
 
-    return distance_matrix, embeddings
+    return distance_matrix, embeddings, activity_freq_dict, activity_index

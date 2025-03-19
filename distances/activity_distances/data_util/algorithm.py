@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import List, Tuple, Dict
 import numpy as np
+import scipy
 
 #Given Pm4py Event Log, return List of Lists of Activities (List of Traces)
 def give_log_padding(log, ngram_size):
@@ -33,7 +34,7 @@ def transform_control_flow_lists_to_csv(control_flow_lists):
     time_delta = timedelta(hours=1)
 
     events = []
-    for case_id, activities in enumerate(activity_sequences):
+    for case_id, activities in enumerate(control_flow_lists):
         for event_index, activity in enumerate(activities):
             timestamp = start_time + event_index * time_delta
             events.append([case_id, activity, timestamp.isoformat() + "+00:00"])
@@ -78,12 +79,21 @@ def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[
     return {k: dict(v) for k, v in context_dict.items()}  # Convert inner defaultdicts to regular
 
 def get_cosine_distance_dict(embeddings):
+    # Normalize embeddings
+    """
+    normalized_embeddings = {
+        activity: embedding / np.linalg.norm(embedding)
+        for activity, embedding in embeddings.items()
+    }
+    """
 
     # Compute distances
     distances = {}
     for activity1 in embeddings.keys():
         for activity2 in embeddings.keys():
-            distance = cosine_distance(embeddings[activity1], embeddings[activity2])
+            distance = scipy.spatial.distance.cosine(embeddings[activity1], embeddings[activity2])
+            #distance = cosine_distance(embeddings[activity1], embeddings[activity2])
+
             distances[(activity1, activity2)] = distance
     return distances
 
