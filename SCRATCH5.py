@@ -1,53 +1,59 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Data Preparation
+# Recreate the table data
 data = {
-    "Model": [
-        "Bose 2009 Substitution Scores", "Bose 2009 Substitution Scores", "Bose 2009 Substitution Scores", "Bose 2009 Substitution Scores",
-        "De Koninck 2018 act2vec CBOW", "De Koninck 2018 act2vec CBOW", "De Koninck 2018 act2vec CBOW", "De Koninck 2018 act2vec CBOW",
-        "Unit Distance", "Unit Distance", "Unit Distance", "Unit Distance",
-        "De Koninck 2018 act2vec skip-gram", "De Koninck 2018 act2vec skip-gram", "De Koninck 2018 act2vec skip-gram", "De Koninck 2018 act2vec skip-gram",
-        "Activity-Activity Co Occurrence Bag Of Words", "Activity-Activity Co Occurrence Bag Of Words", "Activity-Activity Co Occurrence Bag Of Words", "Activity-Activity Co Occurrence Bag Of Words",
-        "Activity-Activity Co Occurrence N-Gram", "Activity-Activity Co Occurrence N-Gram", "Activity-Activity Co Occurrence N-Gram", "Activity-Activity Co Occurrence N-Gram",
-        "Activity-Context Bag Of Words", "Activity-Context Bag Of Words", "Activity-Context Bag Of Words", "Activity-Context Bag Of Words",
-        "Activity-Context Bag of Words as N-Grams", "Activity-Context Bag of Words as N-Grams", "Activity-Context Bag of Words as N-Grams", "Activity-Context Bag of Words as N-Grams",
-        "Activity-Context N-Grams", "Activity-Context N-Grams", "Activity-Context N-Grams", "Activity-Context N-Grams",
-        "Activity-Context Bag Of Words PMI", "Activity-Context Bag Of Words PMI", "Activity-Context Bag Of Words PMI", "Activity-Context Bag Of Words PMI",
-        "Activity-Context Bag of Words as N-Grams PMI", "Activity-Context Bag of Words as N-Grams PMI", "Activity-Context Bag of Words as N-Grams PMI", "Activity-Context Bag of Words as N-Grams PMI",
-        "Activity-Context N-Grams PMI", "Activity-Context N-Grams PMI", "Activity-Context N-Grams PMI", "Activity-Context N-Grams PMI"
+    "Smoothing method": [
+        "Good-Turing", "Witten–Bell", "absolute disc. of 0.9", "original Kneser–Ney", "modified Kneser–Ney",
+        "Witten–Bell", "absolute disc. of 0.5", "absolute disc. of 0.8", "absolute disc. of 0.9",
+        "absolute disc. of 1.0", "original Kneser–Ney", "modified Kneser–Ney"
     ],
-    "Metric": ["Diameter", "Precision@w-1", "Nearest Neighbor", "Triplet Value"] * 12,
-    "Value": [
-        0.2304, 0.6640, 0.6768, 0.8659,
-        0.3177, 0.5197, 0.5641, 0.7586,
-        1.0, 0.1111, 0.1205, 0.0,
-        0.3177, 0.5197, 0.5633, 0.7584,
-        0.7518, 0.1349, 0.00002, 0.6583,
-        0.1514, 0.7123, 0.7928, 0.9236,
-        1.0, 0.0070, 0.0, 0.0,
-        1.0, 0.0070, 0.0, 0.0,
-        0.4453, 0.6689, 0.7213, 0.8441,
-        1.0, 0.0070, 0.0, 0.0,
-        1.0, 0.0070, 0.0, 0.0,
-        0.4453, 0.6689, 0.7212, 0.8441
-    ]
+    "Interpolation": ["no", "no", "no", "no", "no", "yes", "yes", "yes", "yes", "yes", "yes", "yes"],
+    "PER": [8.28, 8.00, 11.71, 8.62, 9.18, 7.68, 8.03, 7.56, 7.52, 8.24, 6.86, 6.75],
+    "std": [0.12, 0.13, 0.14, 0.13, 0.13, 0.12, 0.13, 0.13, 0.12, 0.13, 0.12, 0.12]
 }
 
-# DataFrame Creation
+# Convert to DataFrame
 df = pd.DataFrame(data)
 
-# Visualization
-plt.figure(figsize=(14, 8))
-for metric in df['Metric'].unique():
-    subset = df[df['Metric'] == metric]
-    plt.plot(subset['Model'], subset['Value'], marker='o', label=metric)
+# Reverse order for correct alignment with table
+df = df.iloc[::-1]
 
-plt.xticks(rotation=90)
-plt.xlabel("Model")
-plt.ylabel("Value")
-plt.title("Activity Metrics Visualization")
-plt.legend()
-plt.grid(True)
+# Set figure size
+fig, ax = plt.subplots(figsize=(8, 6))
+
+# Create horizontal bar plot
+sns.barplot(data=df, x="PER", y="Smoothing method", hue="Interpolation", dodge=False, ax=ax, palette=["gray", "black"])
+
+# Add error bars
+for index, row in df.iterrows():
+    ax.errorbar(row["PER"], index, xerr=row["std"], fmt='none', color='black', capsize=3)
+
+# Customize labels and limits
+ax.set_xlabel("PER ± 1 sd")
+ax.set_ylabel("")
+ax.set_xlim(6, 12)
+plt.legend(title="Interpolation", loc="lower right")
+
+# Remove y-axis labels and ticks to align with table
+ax.set_yticks([])
+ax.set_yticklabels([])
+
+# Create the table data
+table_data = df[["Smoothing method", "Interpolation", "PER"]].copy()
+table_data["PER"] = table_data["PER"].astype(str) + " ± " + df["std"].astype(str)  # Format error values
+
+# Create and position the table **inside the plot**
+table = plt.table(cellText=table_data.values,
+                  colLabels=["Smoothing Method", "Interpolation", "PER ± 1 sd"],
+                  cellLoc='center', colLoc='center',
+                  loc='center', bbox=[-0.55, 0.25, 1.3, 1])  # Adjust position for integration
+
+# Adjust font size
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+
+# Final adjustments
 plt.tight_layout()
 plt.show()
