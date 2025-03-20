@@ -38,7 +38,7 @@ from definitions import ROOT_DIR
 
 
 
-def get_context_based_distance_matrix(control_flow_lists):
+def get_context_based_distance_matrix(control_flow_lists, window_size):
 
     xes_filename, xes_log_path = transform_control_flow_lists_to_xes(control_flow_lists)
 
@@ -53,8 +53,8 @@ def get_context_based_distance_matrix(control_flow_lists):
         "--crossvalidation",
         "--aerac",
         "--activity",
-        "--emb_size", "8",
-        "--win_size", "4",
+        "--emb_size", "200",
+        "--win_size", str(math.floor((window_size - 1) / 2)),
         "--print_console_file"
     ]
 
@@ -135,7 +135,7 @@ def get_context_based_distance_matrix(control_flow_lists):
 
     delete_temporary_files(xes_log_path, csv_path, config_csv_path)
 
-    print(pairwise_cosine_distances)
+    #print(pairwise_cosine_distances)
 
     return pairwise_cosine_distances
 

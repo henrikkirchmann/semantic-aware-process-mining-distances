@@ -298,7 +298,7 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
         mode="min"
     )
 
-    early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
+    early_stopping = EarlyStopping(monitor="val_loss", mode="min")
 
     trainer = pl.Trainer(accelerator='auto', devices=1, max_epochs=Config.EPOCHS,
                          callbacks=[TQDMProgressBar(refresh_rate=200), checkpoint_callback, early_stopping])
@@ -323,7 +323,7 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
 
     embeddings_dict = best_model.get_embeddings()
 
-    print(embeddings_dict)
+    #print(embeddings_dict)
 
     return dict_metrics[0]["test_loss_epoch"], embeddings_dict, dict_metrics[0]["test_err_epoch"]
 

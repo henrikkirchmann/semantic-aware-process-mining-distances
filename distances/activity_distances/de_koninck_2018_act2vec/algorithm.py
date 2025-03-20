@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.manifold import TSNE  # final reduction
 
 
-def get_act2vec_distance_matrix(log, alphabet, sg = 0):
+def get_act2vec_distance_matrix(log, alphabet, sg, window_size):
     vectorsize = 16
     #model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=9, min_count=0, alpha=0.025, min_alpha=0.005, epochs=10, sg=sg)
 
@@ -23,7 +23,7 @@ def get_act2vec_distance_matrix(log, alphabet, sg = 0):
         model.min_alpha = model.alpha  # fix the learning rate, no decay
     '''
     # Initialize model
-    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=3, min_count=0, workers=4)
+    model = gensim.models.Word2Vec(sentences=log, vector_size=vectorsize, window=window_size, min_count=0, workers=1, sg=sg)
 
     nrEpochs = 10
     alpha = 0.025

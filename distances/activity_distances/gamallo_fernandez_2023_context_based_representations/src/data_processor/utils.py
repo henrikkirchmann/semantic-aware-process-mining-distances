@@ -155,6 +155,9 @@ def convert_xes_to_csv(xes_path: str, output_columns: dict) -> str:
         csv_path = Path(xes_path).parent.parent
     csv_fullpath = os.path.join(csv_path, csv_file)
 
+    # Ensure the directory exists
+    os.makedirs(csv_path, exist_ok=True)  # Creates the directory if it doesn't exist
+
     df_log.to_csv(csv_fullpath, index=False)
 
     return csv_fullpath, Config.CSV_PATH, attr_dict

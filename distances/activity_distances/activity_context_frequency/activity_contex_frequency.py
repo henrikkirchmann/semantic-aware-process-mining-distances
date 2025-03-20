@@ -4,7 +4,7 @@ import numpy as np
 
 from distances.activity_distances.data_util.algorithm import give_log_padding, get_ngrams_dict, get_context_dict, \
     get_cosine_distance_dict
-
+from additional_scripts.embedding_as_heatmap import plot_heatmap
 
 def get_activity_embeddings(context_dict):
     del context_dict["."]
@@ -24,7 +24,7 @@ def get_activity_embeddings(context_dict):
         print(f"{activity}: {vector}")
 
 
-def get_activity_context_frequency_matrix(log, alphabet, ngram_size, bag_of_words=3):
+def get_activity_context_frequency_matrix(log, alphabet, ngram_size, bag_of_words):
     # bag_of_words = 0, n-gram l r
     # bag_of_words = 1,  n-gram but count as bag of words
     # bag_of_words = 2,  n-grams collapse to multi sets
@@ -55,7 +55,7 @@ def get_activity_context_frequency_matrix(log, alphabet, ngram_size, bag_of_word
                 if activity != ".":
                     embeddings[activity][context_index[multi_set]] += count * freq
 
-    elif bag_of_words == 1:
+    if bag_of_words == 1:
         # Create embeddings
         embeddings = {}
         for activity in alphabet:
@@ -70,7 +70,7 @@ def get_activity_context_frequency_matrix(log, alphabet, ngram_size, bag_of_word
                 if activity != ".":
                     embeddings[activity][context_index[ngram]] += freq
 
-    elif bag_of_words == 0:
+    if bag_of_words == 0:
         context_dict = get_context_dict(ngrams_dict)
 
         # Collect all unique keys from the inner dictionaries
@@ -92,6 +92,7 @@ def get_activity_context_frequency_matrix(log, alphabet, ngram_size, bag_of_word
         for activity in context_dict.keys():
             for context in context_dict[activity].keys():
                 embeddings[activity][context_index[context]] += context_dict[activity][context]
+
 
     distance_matrix = get_cosine_distance_dict(embeddings)
     return distance_matrix, embeddings, activity_freq_dict, context_freq_dict, context_index

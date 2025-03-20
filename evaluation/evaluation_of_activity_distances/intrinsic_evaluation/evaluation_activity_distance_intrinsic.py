@@ -56,7 +56,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
 
-        mp = 1
+        mp = 0
         if mp == 1:
             with Pool(processes=cores_to_use) as pool:
                 results = pool.map(intrinsic_evaluation, combinations)
@@ -141,7 +141,7 @@ def intrinsic_evaluation(args):
                     activity_distance_function, logs_with_replaced_activities
                 )
 
-                if "Bose 2009 Substitution Scores" == activity_distance_function[0]:
+                if "Bose 2009 Substitution Scores" in activity_distance_function[0]:
                     reverse = True  # high values = high similarity
                 else:
                     reverse = False  # high values = high distances
@@ -202,28 +202,34 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
+    activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
-    activity_distance_functions.append("Unit Distance")
+    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
     activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
-    activity_distance_functions.append("Our act2vec")
-    #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
+    #activity_distance_functions.append("Our act2vec")
+    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PMI")
+    activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PPMI")
+    activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PPMI")
     activity_distance_functions.append("Activity-Context Bag Of Words")
-    activity_distance_functions.append("Activity-Context as Bag of Words with N-Grams")
+    #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams")
     activity_distance_functions.append("Activity-Context N-Grams")
     activity_distance_functions.append("Activity-Context Bag Of Words PMI")
-    activity_distance_functions.append("Activity-Context as Bag of Words with N-Grams PMI")
+    #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PMI")
     activity_distance_functions.append("Activity-Context N-Grams PMI")
+    activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
+   #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
+    activity_distance_functions.append("Activity-Context N-Grams PPMI")
+
 
 
     ##############################################################################
-    r_min = 15
-    w = 10
+    r_min = 5
+    w = 5
     sampling_size = 4
 
     window_size_list = [3,5,7,9]

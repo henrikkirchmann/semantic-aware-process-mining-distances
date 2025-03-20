@@ -241,7 +241,7 @@ def plot_results(df_average_values, log_name):
 
     # Generate and save a plot for each metric
     for metric in metrics:
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(20, 6))
 
         # Create the plot: Barplot for each distance function
         sns.barplot(data=df_average_values, x="Distance Function", y=metric, palette="viridis")
@@ -464,7 +464,9 @@ def add_window_size_evaluation(activity_distance_functions, window_size_list):
     new_activity_distance_function_list = list()
     for activity_distance_function in activity_distance_functions:
         if activity_distance_function.startswith(
-                ("Bose", "De Konick", "Activity-Activitiy", "Activity-Context", "Gamallo Fernandez")):
+                ("Bose", "De Koninck", "Activity-Activitiy", "Activity-Context", "Gamallo Fernandez", "Our")):
             for window_size in window_size_list:
                 new_activity_distance_function_list.append(activity_distance_function + " w_" + str(window_size))
+        else:
+            new_activity_distance_function_list.append(activity_distance_function)
     return new_activity_distance_function_list
