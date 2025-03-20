@@ -22,12 +22,13 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
     # Load event logs from files
     for log_name in log_list:
         # If multiple XES files need to be imported for one log, load all files from the specified folder.
+        """ 
         if log_name[:4] == "bpic" or log_name[:3] == "pdc":
             sublog_list = get_sublog_list(log_name)
             log_control_flow_perspective = [inner for outer in sublog_list for inner in outer]
-        else:
-            log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes')
-            log_control_flow_perspective = get_log_control_flow_perspective(log)
+        """
+        log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes.gz')
+        log_control_flow_perspective = get_log_control_flow_perspective(log)
 
         alphabet = get_alphabet(log_control_flow_perspective)
 
@@ -56,7 +57,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
 
-        mp = 0
+        mp = 1
         if mp == 1:
             with Pool(processes=cores_to_use) as pool:
                 results = pool.map(intrinsic_evaluation, combinations)
@@ -205,10 +206,10 @@ if __name__ == '__main__':
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
     activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     #activity_distance_functions.append("Our act2vec")
-    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
+    #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
@@ -222,17 +223,17 @@ if __name__ == '__main__':
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PMI")
     activity_distance_functions.append("Activity-Context N-Grams PMI")
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
-   #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
+    activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
 
 
 
     ##############################################################################
-    r_min = 5
-    w = 5
-    sampling_size = 4
+    r_min = 10
+    w = 10
+    sampling_size = 10
 
-    window_size_list = [3,5,7,9]
+    window_size_list = [3,5,9]
 
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
 
