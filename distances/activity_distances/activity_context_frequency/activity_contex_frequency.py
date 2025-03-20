@@ -4,7 +4,7 @@ import numpy as np
 
 from distances.activity_distances.data_util.algorithm import give_log_padding, get_ngrams_dict, get_context_dict, \
     get_cosine_distance_dict
-from additional_scripts.embedding_as_heatmap import plot_heatmap
+#from additional_scripts.embedding_as_heatmap import plot_heatmap
 
 def get_activity_embeddings(context_dict):
     del context_dict["."]
