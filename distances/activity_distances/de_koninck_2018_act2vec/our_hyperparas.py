@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.manifold import TSNE  # final reduction
 
 
-updating testingdef get_act2vec_distance_matrix_our(log, alphabet, window_size):
+def get_act2vec_distance_matrix_our(log, alphabet, window_size):
     model = gensim.models.Word2Vec(sentences=log, vector_size=window_size, window=3, min_count=0, epochs=50, sg=1, negative = 0, hs = 1)
 
     #act2vev paper
