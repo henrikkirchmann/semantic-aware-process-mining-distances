@@ -6,7 +6,10 @@ import gc
 import copy
 import random
 import math
-
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import os
 from networkx.algorithms.approximation import diameter
 
 from evaluation.data_util.util_activity_distances import get_obj_size
@@ -14,6 +17,9 @@ import pandas as pd
 from definitions import ROOT_DIR
 import sys
 from itertools import combinations
+import pickle
+import os
+import re
 
 
 def get_log_control_flow_perspective(log):
@@ -42,6 +48,8 @@ def reservoir_sampling(iterator, sample_size):
 
 
 def get_activities_to_replace(alphabet: List[str], different_activities_to_replace_count: int, sample_size: int):
+    activity_dict = {i: activity for i, activity in enumerate(alphabet)}
+    id_set = set(activity_dict.keys())
     alphabet_len = len(alphabet)
     alphabet_len_minus_one = alphabet_len -1
     sampled_combinations = set()
@@ -52,11 +60,19 @@ def get_activities_to_replace(alphabet: List[str], different_activities_to_repla
             activity_index_set.add(random.randint(0, alphabet_len_minus_one))
         activity_index_list = list(activity_index_set)
         activity_index_list.sort()
+        activity_index_set_frozen = frozenset(activity_index_list)
+        """
         acitvity_list = list()
         for index in activity_index_list:
             acitvity_list.append(alphabet[index])
-        sampled_combinations.add(tuple(acitvity_list))
-    return sampled_combinations
+        """
+        sampled_combinations.add(activity_index_set_frozen)
+
+    # Convert set of frozenset to list of tuples
+    sampled_combinations_id_list = [tuple(sampled_combination) for sampled_combination in sampled_combinations]
+    # Convert IDs in tuples to corresponding values from alphabet_dict
+    sampled_combinations_list = [tuple(activity_dict[i] for i in tpl) for tpl in sampled_combinations_id_list]
+    return sampled_combinations_list
 
 
 def get_logs_with_replaced_activities_dict(activities_to_replace_in_each_run_list, log_control_flow_perspective,
@@ -98,20 +114,20 @@ def get_n_nearest_neighbors(n, replaced_activities, similarity_scores_of_activit
             replaced_activity_i = replaced_activity + ':' + str(i)
             # Collect all similarity scores for the current replaced_activity
             distances = []
+            if replaced_activity_i in similarity_scores_of_activities:
+                for activity in similarity_scores_of_activities[replaced_activity_i]:
+                    if activity != replaced_activity_i:
+                        distances.append((activity, similarity_scores_of_activities[replaced_activity_i][activity]))
 
-            for activity in similarity_scores_of_activities[replaced_activity_i]:
-                if activity != replaced_activity_i:
-                    distances.append((activity, similarity_scores_of_activities[replaced_activity_i][activity]))
+                if len(distances) > 0:
+                    # Sort distances by the similarity score (distance)
+                    distances.sort(key=lambda x: x[1], reverse=reverse)
 
-            if len(distances) > 0:
-                # Sort distances by the similarity score (distance)
-                distances.sort(key=lambda x: x[1], reverse=reverse)
+                    # Get the top n nearest neighbors
+                    nearest_neighbors = [activity for activity, _ in distances[:n]]
 
-                # Get the top n nearest neighbors
-                nearest_neighbors = [activity for activity, _ in distances[:n]]
-
-                # Store the nearest neighbors in the dictionary
-                neighbors[replaced_activity_i] = nearest_neighbors
+                    # Store the nearest neighbors in the dictionary
+                    neighbors[replaced_activity_i] = nearest_neighbors
 
     return neighbors
 
@@ -158,6 +174,8 @@ def get_precision_at_k(knn_dict, activity_distances):
 
 def save_intrinsic_results(activity_distance_functions, results, log_name, r, w, sampling_size):
     activity_distance_function_index = 0
+    df_average_values = pd.DataFrame(columns=["Log Name", "Distance Function", 'diameter', 'precision@w-1', 'precision@1', 'triplet'])
+
     for activity_distance_function in activity_distance_functions:
         results_per_activity_distance_function = list()
         for result in results:
@@ -179,14 +197,74 @@ def save_intrinsic_results(activity_distance_functions, results, log_name, r, w,
         # Print average results
         print_average_results(df, activity_distance_function)
 
+        # diameter
+        diameter_result = df.pivot(index='w', columns='r', values='diameter')
+        diameter_average = diameter_result.values.mean()
+
+        # precision@w-1
+        prec_result = df.pivot(index='w', columns='r', values='precision@w-1')
+        prec_average = prec_result.values.mean()
+
+        # precision@1
+        nn_result = df.pivot(index='w', columns='r', values='precision@1')
+        nn_average = nn_result.values.mean()
+
+        # triplet
+        triplet_result = df.pivot(index='w', columns='r', values='triplet')
+        triplet_average = triplet_result.values.mean()
+
+        new_row = pd.DataFrame([{
+            "Log Name": log_name,
+            "Distance Function": activity_distance_function,
+            'diameter': diameter_average,
+            'precision@w-1': prec_average,
+            'precision@1': nn_average,
+            'triplet': triplet_average
+        }])
+
+        df_average_values = pd.concat([df_average_values, new_row], ignore_index=True)
+
         activity_distance_function_index += 1
+    # Plot the results
+    plot_results(df_average_values, log_name)
 
+def plot_results(df_average_values, log_name):
+    # Create a folder for saving plots if it doesn't exist
+    plot_dir = ROOT_DIR + "/results/activity_distances/intrinsic/" + log_name + "/plots/"
+    os.makedirs(plot_dir, exist_ok=True)
 
-       # visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
-       #                                    log_name, r, w, sampling_size, output_file)
-       # load_visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
-       #                                         log_name, r, w, sampling_size, output_file)
-       # activity_distance_function_index = activity_distance_function_index + 1
+    # List of columns to plot
+    metrics = ['diameter', 'precision@w-1', 'precision@1', 'triplet']
+
+    # Set plot style
+    sns.set(style="whitegrid")
+
+    # Generate and save a plot for each metric
+    for metric in metrics:
+        plt.figure(figsize=(20, 6))
+
+        # Create the plot: Barplot for each distance function
+        sns.barplot(data=df_average_values, x="Distance Function", y=metric, palette="viridis")
+
+        # Set plot labels and title
+        plt.title(f"{metric} for each Distance Function", fontsize=16)
+        plt.xlabel('Distance Function', fontsize=14)
+        plt.ylabel(metric, fontsize=14)
+        plt.xticks(rotation=45, ha="right")  # Rotate x-axis labels for readability
+
+        # Save the plot to the directory
+        plot_filename = f"{log_name}_{metric}_plot.png"
+        plt.tight_layout()
+        plt.savefig(plot_dir + plot_filename)
+
+        # Show the plot (optional)
+        plt.show()
+
+# visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
+   #                                    log_name, r, w, sampling_size, output_file)
+   # load_visualization_intrinsic_evaluation(results_per_activity_distance_function, activity_distance_function,
+   #                                         log_name, r, w, sampling_size, output_file)
+   # activity_distance_function_index = activity_distance_function_index + 1
 
 def print_average_results(df, activity_distance_function):
 
@@ -244,7 +322,10 @@ def get_avg_triplet_value(replaced_activities, similarity_scores_of_activities, 
             for out_of_class_activity in out_of_class_activities:
                 triplet_value_for_pair.append(triplet_is_in_class(replaced_activity_pair[0], replaced_activity_pair[1], out_of_class_activity, similarity_scores_of_activities))
             triplet_value_for_pairs.append(sum(triplet_value_for_pair) / len(triplet_value_for_pair))
-        triplet_value_for_class.append(sum(triplet_value_for_pairs) / len(triplet_value_for_pairs))
+        if len(triplet_value_for_pairs) == 0:
+            triplet_value_for_class.append(0)
+        else:
+            triplet_value_for_class.append(sum(triplet_value_for_pairs) / len(triplet_value_for_pairs))
     triplet_value_for_log = sum(triplet_value_for_class) / len(triplet_value_for_class)
     return triplet_value_for_log
 
@@ -306,6 +387,7 @@ def get_diameter(activity_distance_matrix_dict,
                                                             replaced_activities], activities_to_replace_with_count, reverse, alphabet)
             diameter_list.append(avg_triplet_value)
 
+
     return sum(diameter_list) / len(diameter_list)
 
 
@@ -319,8 +401,6 @@ def get_avg_diameter_value(replaced_activities, similarity_scores_of_activities,
 
     #for performance reasons transform matrix into nested dict
     normalized_similarity_scores_of_activities = get_nested_dict(normalized_similarity_scores_of_activities)
-    if len(replaced_activities) > 3:
-        print("a")
     replaced_activities_dict = get_replaced_activities_dict(replaced_activities, normalized_similarity_scores_of_activities)
     diameter_per_class = list()
     for replaced_activity in replaced_activities:
@@ -328,7 +408,11 @@ def get_avg_diameter_value(replaced_activities, similarity_scores_of_activities,
         diameter_in_class = list()
         for in_class_combination in in_class_combinations:
             diameter_in_class.append(normalized_similarity_scores_of_activities[in_class_combination[0]][in_class_combination[1]])
-        diameter_per_class.append(sum(diameter_in_class) / len(diameter_in_class))
+        #if activity got only by one other activity replaced
+        if len(in_class_combinations) != 0:
+            diameter_per_class.append(sum(diameter_in_class) / len(diameter_in_class))
+        else:
+            diameter_per_class.append(0)
     avg_diameter_for_log = sum(diameter_per_class) / len(diameter_per_class)
     return avg_diameter_for_log
 
@@ -343,3 +427,46 @@ def get_normalized_similarity_scores_of_activities(similarity_scores_of_activiti
     }
 
     return normalized_data
+
+def save_results(results, log_name, activity_distance_function, different_activities_to_replace_count, activities_to_replace_with_count, sampling_size):
+    file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
+    path_to_file = os.path.join(
+        ROOT_DIR, "evaluation", "evaluation_of_activity_distances",
+        "intrinsic_evaluation", "results", log_name, activity_distance_function, file_name
+    )
+
+    # Ensure the directory exists before saving
+    os.makedirs(os.path.dirname(path_to_file), exist_ok=True)  # Create all missing directories
+
+    # Save results
+    with open(path_to_file, "wb") as f:
+        pickle.dump(results, f)
+
+
+def load_results(log_name, activity_distance_function, different_activities_to_replace_count, activities_to_replace_with_count, sampling_size):
+
+    file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
+
+    path_to_file = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances",
+                                "intrinsic_evaluation",
+                                "results", log_name, activity_distance_function, file_name)
+
+    # Check if the file exists and load it
+    if os.path.exists(path_to_file):
+        with open(path_to_file, "rb") as f:
+            return pickle.load(f)
+    else:
+        return None
+
+
+def add_window_size_evaluation(activity_distance_functions, window_size_list):
+
+    new_activity_distance_function_list = list()
+    for activity_distance_function in activity_distance_functions:
+        if activity_distance_function.startswith(
+                ("Bose", "De Koninck", "Activity-Activitiy", "Activity-Context", "Gamallo Fernandez", "Our")):
+            for window_size in window_size_list:
+                new_activity_distance_function_list.append(activity_distance_function + " w_" + str(window_size))
+        else:
+            new_activity_distance_function_list.append(activity_distance_function)
+    return new_activity_distance_function_list

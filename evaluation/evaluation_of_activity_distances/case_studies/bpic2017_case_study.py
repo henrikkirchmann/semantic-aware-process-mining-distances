@@ -13,6 +13,11 @@ from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 import numpy as np
 from sklearn.cluster import KMeans, DBSCAN, SpectralClustering
 from scipy.optimize import linear_sum_assignment
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+
+
 
 
 def remap_labels(cluster_labels, true_labels):
@@ -197,6 +202,71 @@ def remove_lists_with_extra_activities(log_control_flow_perspective, extra_activ
     ]
     return log_control_flow_perspective
 
+def visualize_activities_in_2d(activities, activity_distance_matrix, color_groups):
+    """
+    Visualize activities in a 2D plane based on the distance matrix.
+
+    Parameters:
+    - activities: List of activity names.
+    - activity_distance_matrix: Dictionary of activity pair distances.
+    - color_groups: List of lists, where each sublist represents activities with the same color.
+    """
+    # Convert activity_distance_matrix (dict) into a square numpy array
+    activity_indices = {activity: idx for idx, activity in enumerate(activities)}
+    distance_matrix = np.zeros((len(activities), len(activities)))
+
+    for (act1, act2), distance in activity_distance_matrix.items():
+        idx1, idx2 = activity_indices[act1], activity_indices[act2]
+        distance_matrix[idx1, idx2] = distance
+        distance_matrix[idx2, idx1] = distance  # Ensure symmetry
+
+    # Map activities to colors
+    activity_to_color = {}
+    color_palette = ['gray', 'yellow', 'blue', 'green', 'orange']  # Predefined colors for groups
+    for idx, color_group in enumerate(color_groups):
+        for activity in color_group:
+            activity_to_color[activity] = color_palette[idx]
+
+    # Get colors for the activities
+    colors = [activity_to_color.get(activity, 'black') for activity in activities]
+
+    # Dynamically set perplexity based on the number of activities
+    perplexity = min(30, len(activities) - 1)
+
+    # Reduce dimensionality to 2D using t-SNE with random initialization
+    tsne = TSNE(n_components=2, metric='precomputed', perplexity=perplexity, init='random', random_state=42)
+    coordinates = tsne.fit_transform(distance_matrix)
+
+    # Plot the activities in 2D
+    plt.figure(figsize=(10, 8))
+    for i, activity in enumerate(activities):
+        plt.scatter(
+            coordinates[i, 0],
+            coordinates[i, 1],
+            color=colors[i],
+            s=100,
+            alpha=0.8,
+            edgecolors='k'
+        )
+        plt.text(coordinates[i, 0] + 0.03, coordinates[i, 1] + 0.03, activity, fontsize=9)
+
+    # Add legend
+    handles = [
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, label=color_group[0])
+        for color, color_group in zip(color_palette, color_groups)
+    ]
+    plt.legend(handles=handles, loc='best', title='Activity Groups')
+
+    # Add labels and title
+    plt.title('2D Visualization of Activities by Distance')
+    plt.xlabel('Dimension 1')
+    plt.ylabel('Dimension 2')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+
 
 if __name__ == '__main__':
     ##############################################################################
@@ -206,7 +276,7 @@ if __name__ == '__main__':
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
     activity_distance_functions.append("Unit Distance")
 
-    log_name = "BPIC 2017"
+    log_name = "BPIC2017"
 
     log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes')
     log_control_flow_perspective = get_log_control_flow_perspective(log)
@@ -301,5 +371,9 @@ if __name__ == '__main__':
             ari, nmi = evaluate_overlap_with_remapping(activities, cluster_labels, color_groups)
             print(f"Adjusted Rand Index (ARI): {ari}")
             #print(f"Normalized Mutual Information (NMI): {nmi}")
+            # Visualize the activities in 2D
+            visualize_activities_in_2d(activities, activity_distance_matrix, color_groups)
+
+
 
 

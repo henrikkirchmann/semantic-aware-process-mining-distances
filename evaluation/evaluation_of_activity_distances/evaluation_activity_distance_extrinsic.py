@@ -3,7 +3,7 @@ from multiprocessing import Pool
 
 from matplotlib import pyplot as plt
 import seaborn as sns
-from evaluation.data_util.util_activity_distances import get_alphabet, get_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
+from evaluation.data_util.util_activity_distances import get_alphabet, get_normalized_activity_distance_matrix_dict_list, get_obj_size, print_log_stats
 from evaluation.data_util.util_activity_distances_extrinsic import (
     get_sublog_list, get_trace_distances, get_precision_values, get_log_with_trace_ids, print_avg_values, get_sampled_sublogs, get_activity_clustering
 )
@@ -51,7 +51,7 @@ def evaluate_extrinsic(activity_distance_functions, log_name):
     cores_to_use = max(1, cores_to_use)
 
     with Pool(processes=cores_to_use) as pool:
-        activity_distance_matrix_dict_list = pool.map(get_activity_distance_matrix_dict_list, combinations)
+        activity_distance_matrix_dict_list = pool.map(get_normalized_activity_distance_matrix_dict_list, combinations)
 
     print("Distances Computed")
 
