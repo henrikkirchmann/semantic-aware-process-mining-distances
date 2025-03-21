@@ -139,6 +139,21 @@ def new_pathlength(process_tree):
 
     return pathlength_dict
 
+def new_pathlength_in_place(process_tree):
+    pathlength_dict = {}
+    activity_postion_dict = get_activity_position_dict(process_tree)
+
+    # Find the longest sublist length
+    #longest_list_length = max(map(len, trace_list), default=1)  # Use `default=1` to avoid ZeroDivisionError
+    longest_path = max(activity_postion_dict.values(), default=0)
+
+    # Compute max index and store final values in pathlength_dict in one pass
+    for act in activity_postion_dict.keys():
+        pathlength_dict[act] = activity_postion_dict[act] / longest_path
+
+    return pathlength_dict
+
+
 
 def new_parallelism_pathlength(process_tree):
     to_visit = deque([process_tree])  # Use deque for faster pops
@@ -148,25 +163,67 @@ def new_parallelism_pathlength(process_tree):
         n = to_visit.popleft()  # O(1) operation instead of O(n) pop(0)
 
         if n.operator is pt_opt.Operator.PARALLEL:
-            sub_trace_list = [get_sub_traces(child) for child in n.children]
-            parallel_subtrace_list = combine_sublists_sequentially(sub_trace_list)
 
+            activity_postion_dict = get_activity_position_dict(process_tree)
+            longest_path = max(activity_postion_dict.values(), default=0)
+
+            #parallel_subtrace_list = combine_sublists_sequentially(sub_trace_list)
+            #activity_position_dict(process_tree):
             # Find the longest sublist length
-            longest_list_length = max(map(len, parallel_subtrace_list), default=1)  # Avoid division by zero
+            #longest_list_length = max(map(len, parallel_subtrace_list), default=1)  # Avoid division by zero
 
             element_max_indices = {}
 
             # Combine two loops into one
-            for sublist in parallel_subtrace_list:
-                for index, element in enumerate(sublist, start=1):  # Start index from 1 directly
-                    element_max_indices[element] = max(element_max_indices.get(element, -1), index)
-                    parallelism_pathlength_dict[element] = element_max_indices[element] / longest_list_length  # Store directly
+            for activity in activity_postion_dict:
+                    parallelism_pathlength_dict[activity] = activity_postion_dict[activity] / longest_path  # Store directly
 
         else:
             to_visit.extend(n.children)  # More efficient than a loop with append()
 
     return parallelism_pathlength_dict
 
+def get_activity_position_dict(process_tree):
+    """
+    Extract sub-traces from a process tree based on its operator type.
+    """
+    if process_tree.operator is None:
+        return {process_tree.label: 1} if process_tree.label else {}
+
+    activity_positions_of_children = [get_activity_position_dict(child) for child in process_tree.children]
+
+    if process_tree.operator in {pt_opt.Operator.XOR, pt_opt.Operator.PARALLEL}:
+        merged_dict = {}
+        for d in activity_positions_of_children:
+            merged_dict.update(d)
+
+        return merged_dict
+
+    if process_tree.operator is pt_opt.Operator.SEQUENCE:
+
+        return merge_dicts_for_seq(activity_positions_of_children)
+
+    if process_tree.operator is pt_opt.Operator.LOOP:
+        return activity_positions_of_children[0]
+
+    return []  # Default return in case of unexpected operators
+
+def merge_dicts_for_seq(activity_positions_of_children):
+    merged_dict = defaultdict(int)
+    max_prev = 0  # Initial max value is 0
+
+    for d in activity_positions_of_children:
+        # Update the dictionary values by adding max_prev
+        updated_dict = {k: v + max_prev for k, v in d.items()}
+
+        # Get the new max value
+        max_prev = max(updated_dict.values(), default=0)
+
+        # Merge into the final dictionary
+        for k, v in updated_dict.items():
+            merged_dict[k] += v
+
+    return dict(merged_dict)
 
 def get_sub_traces(process_tree):
     """

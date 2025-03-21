@@ -203,6 +203,7 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
+    """ 
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
@@ -225,15 +226,16 @@ if __name__ == '__main__':
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
-
+    """
+    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
 
 
     ##############################################################################
-    r_min = 3
-    w = 3
-    sampling_size = 3
+    r_min = 10
+    w = 10
+    sampling_size = 10
 
-    window_size_list = [3]
+    window_size_list = [3,5,9]
 
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
 
@@ -241,8 +243,8 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    log_list.append("BPIC12")
-    #log_list.append("Sepsis")
+    #log_list.append("BPIC12")
+    log_list.append("Sepsis")
     #log_list.append("repairExample")
     #log_list.append("bpic_2015")
     #log_list.append("Sepsis")

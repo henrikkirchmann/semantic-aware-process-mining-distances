@@ -8,12 +8,13 @@ from pm4py.objects.conversion.wf_net import converter as wf_net_converter
 from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.util.xes_constants import DEFAULT_NAME_KEY
 
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.model_feature import optionality
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.model_feature import optionality, p_length
 from distances.activity_distances.chiorrini_2022_embedding_process_structure.new_parallelism_and_pathlength import \
-    newparallelism, new_parallelism_pathlength, new_pathlength
+    newparallelism, new_parallelism_pathlength, new_pathlength, new_pathlength_in_place
 from distances.activity_distances.chiorrini_2022_embedding_process_structure.tree_feature import make_visible, \
     feature_map
 from distances.activity_distances.data_util.algorithm import get_cosine_distance_dict
+from tabulate import tabulate
 
 
 def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
@@ -72,7 +73,19 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
     id_sloop = 2
     id_lloop = 3
 
-    path_l = new_pathlength(tree_2)
+    #start = time.perf_counter()
+    #path_l = p_length(out, net_or, im)
+    #end = time.perf_counter()
+    #print(f"path_l computation time: {end - start:.6f} seconds")
+
+    #start = time.perf_counter()
+    path_l = new_pathlength_in_place(tree_2)
+    #end = time.perf_counter()
+    #print(f"path_in_place computation time: {end - start:.6f} seconds")
+
+    #data = [[key, path_l[key], path_in_place[key], path_in_place[key] - path_l[key]] for key in path_l]
+    #print(tabulate(data, headers=["Key", "Path_L", "Path_In_Place", "Difference"], tablefmt="grid"))
+
 
     # Measure optionality computation time
     opt = optionality(out, id_opt)
