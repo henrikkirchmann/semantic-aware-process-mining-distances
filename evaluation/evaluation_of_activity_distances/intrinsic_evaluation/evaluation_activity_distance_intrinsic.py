@@ -223,7 +223,7 @@ if __name__ == '__main__':
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PMI")
     activity_distance_functions.append("Activity-Context N-Grams PMI")
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
-    activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
+    #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
 
 
