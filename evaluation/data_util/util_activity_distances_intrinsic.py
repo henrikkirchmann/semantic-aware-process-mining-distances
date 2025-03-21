@@ -226,6 +226,13 @@ def save_intrinsic_results(activity_distance_functions, results, log_name, r, w,
 
         activity_distance_function_index += 1
     # Plot the results
+    df_avg_dir = os.path.join(ROOT_DIR, "results", "activity_distances", "intrinsic_df_avg", log_name)
+    os.makedirs(df_avg_dir, exist_ok=True)
+    file_name = f"dfavg_r{r}_w{w}_samplesize_{sampling_size}.pkl"
+    file_path =os.path.join(df_avg_dir, file_name)
+    with open(file_path, "wb") as file:
+        pickle.dump(df_average_values, file)
+
     plot_results(df_average_values, log_name)
 
 def plot_results(df_average_values, log_name):

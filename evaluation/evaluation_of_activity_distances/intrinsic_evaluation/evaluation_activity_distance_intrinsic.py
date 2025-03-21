@@ -229,11 +229,11 @@ if __name__ == '__main__':
 
 
     ##############################################################################
-    r_min = 10
-    w = 10
-    sampling_size = 10
+    r_min = 3
+    w = 3
+    sampling_size = 3
 
-    window_size_list = [3,5,9]
+    window_size_list = [3]
 
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
 
