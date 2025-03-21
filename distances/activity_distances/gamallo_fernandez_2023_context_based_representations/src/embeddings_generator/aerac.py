@@ -282,10 +282,10 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
     test_loader = DataLoader(test_dataset, batch_size=num_workers)
     """
     train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE,
-                              shuffle=True)
+                              shuffle=True, num_workers=71)
     # Shuffling not needed in val/test loaders
-    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE)
-    test_loader = DataLoader(test_dataset)
+    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, num_workers=71)
+    test_loader = DataLoader(test_dataset, num_workers=2)
 
 
     model = AEracModel(eventlog.num_activities, win_size, emb_size).double()

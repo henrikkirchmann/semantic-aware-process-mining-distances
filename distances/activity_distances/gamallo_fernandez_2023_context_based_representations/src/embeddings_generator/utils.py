@@ -40,5 +40,5 @@ class Config:
     ATTR_TO_EMB = DataFrameFields.ACTIVITY_COLUMN
     BATCH_SIZE = 32
     LEARNING_RATE = 0.002
-    EPOCHS = 3
+    EPOCHS = 100
     EARLY_STOPPING_EPOCHS = 10
