@@ -27,6 +27,10 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
             sublog_list = get_sublog_list(log_name)
             log_control_flow_perspective = [inner for outer in sublog_list for inner in outer]
         """
+        path_to_dict = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
+                                    "newly_created_logs", log_name)
+        if not os.path.exists(path_to_dict):
+            os.makedirs(path_to_dict)
         log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes.gz')
         log_control_flow_perspective = get_log_control_flow_perspective(log)
 
@@ -52,7 +56,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         total_cores = multiprocessing.cpu_count()
 
         # Calculate 75% of the available cores
-        cores_to_use = int(total_cores * 0.7)
+        cores_to_use = int(total_cores * 0.6)
 
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
@@ -83,9 +87,6 @@ def intrinsic_evaluation(args):
 
         path_to_dict = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
                                     "newly_created_logs", log_name)
-        if not os.path.exists(path_to_dict):
-            os.makedirs(path_to_dict)
-
         file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
         file_path = os.path.join(path_to_dict, file_name)
         if os.path.isfile(file_path):
@@ -202,8 +203,9 @@ def intrinsic_evaluation(args):
 if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
+
     activity_distance_functions = list()
-    """ 
+    #"""
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
@@ -226,8 +228,9 @@ if __name__ == '__main__':
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
-    """
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    #"""
+    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+
 
 
     ##############################################################################
@@ -235,7 +238,7 @@ if __name__ == '__main__':
     w = 10
     sampling_size = 10
 
-    window_size_list = [3,5,9]
+    window_size_list = [3, 5, 9]
 
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
 
@@ -243,8 +246,14 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    #log_list.append("BPIC12")
-    log_list.append("Sepsis")
+    log_list = ['BPIC17',
+                'BPIC18',
+                'BPIC19',
+                'BPIC20_DomesticDeclarations',
+                'BPIC20_InternationalDeclarations',
+                'BPIC20_PermitLog'
+                ]
+    #log_list.append("Sepsis")
     #log_list.append("repairExample")
     #log_list.append("bpic_2015")
     #log_list.append("Sepsis")
@@ -256,8 +265,37 @@ if __name__ == '__main__':
     # log_list.append("PDC 2017")
     #log_list.append("PDC 2019")
     #log_list.append("BPI Challenge 2017")
-    #log_list.append("BPIC15_1 (1)")
-
+    #log_list.append("BPIC15_1 (1)")\
+    """ 
+    all_logs = ['BPIC12',
+                'BPIC12_A',
+                'BPIC12_Complete',
+                'BPIC12_O',
+                'BPIC12_W',
+                'BPIC12_W_Complete',
+                'BPIC13_closed_problems',
+                'BPIC13_incidents',
+                'BPIC13_open_problems',
+                'BPIC15_1',
+                'BPIC15_2',
+                'BPIC15_3',
+                'BPIC15_4',
+                'BPIC15_5',
+                'BPIC17',
+                'BPIC18',
+                'BPIC19',
+                'BPIC20_DomesticDeclarations',
+                'BPIC20_InternationalDeclarations',
+                'BPIC20_PermitLog',
+                'BPIC20_PrepaidTravelCost',
+                'BPIC20_RequestForPayment',
+                'CCC19',
+                'Env Permit',
+                'Helpdesk',
+                'Hospital Billing',
+                'RTFM',
+                'Sepsis']
+    """
     # log_list.append("BPI Challenge 2017")
     #log_list.append("WABO")
 
