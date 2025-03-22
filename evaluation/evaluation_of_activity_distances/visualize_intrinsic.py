@@ -6,7 +6,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt, rcParams, rc
 
 from definitions import ROOT_DIR
-
+import pickle
 def visualization_intrinsic_evaluation_from_csv(log_name):
 
     '''
@@ -91,6 +91,40 @@ def visualization_intrinsic_evaluation_from_csv(log_name):
         plt.show()
         print("Average precision@w-1 is: " + str(average_value_prec) + " " + activity_distance_function)
 
+def visualization_intrinsic_evaluation_from_pkl(log_name):
+    path_to_log = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
+                                "results", log_name)
+    # Iterate over all activity distance directories
+    for activity_distance_name in os.listdir(path_to_log):
+        result_list = []
+
+        # Iterate over result files in each directory
+        for result in os.listdir(os.path.join(path_to_log, activity_distance_name)):
+            path_to_result = os.path.join(path_to_log, activity_distance_name, result)
+
+            # Load only .pkl files
+            if result.endswith(".pkl") and os.path.isfile(path_to_result):
+                with open(path_to_result, "rb") as file:
+                    data = pickle.load(file)
+                    result_list.append(data)
+
+        # Convert list of dictionaries to DataFrame
+        df = pd.DataFrame(result_list, columns=['r', 'w', "diameter", "precision@w-1", "nn", "triplet"])
+
+        # Plot heatmaps for each metric
+        metrics = ["diameter", "precision@w-1", "nn", "triplet"]
+        for metric in metrics:
+            plt.figure(figsize=(8, 6))
+
+            # Create pivot table and sort w values in descending order
+            pivot_table = df.pivot(index="w", columns="r", values=metric).sort_index(ascending=False)
+
+            sns.heatmap(pivot_table, annot=True, fmt=".2f", cmap="viridis")
+            plt.title(f"Heatmap of {metric} - {activity_distance_name}")  # Activity distance in title
+            plt.xlabel("r")
+            plt.ylabel("w")
+            plt.show()
+
 
 if __name__ == '__main__':
     #log_name = "BPI Challenge 2018"
@@ -104,5 +138,5 @@ if __name__ == '__main__':
     #log_name = "PDC 2019"
     #log_name = "Sepsis"
     #log_name = "WABO"
-    log_name = "repairExample"
-    visualization_intrinsic_evaluation_from_csv(log_name)
+    log_name = "Sepsis"
+    visualization_intrinsic_evaluation_from_pkl(log_name)
