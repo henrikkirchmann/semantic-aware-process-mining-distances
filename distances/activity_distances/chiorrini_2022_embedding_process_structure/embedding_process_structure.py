@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 import numpy as np
@@ -14,8 +15,7 @@ from distances.activity_distances.chiorrini_2022_embedding_process_structure.new
 from distances.activity_distances.chiorrini_2022_embedding_process_structure.tree_feature import make_visible, \
     feature_map
 from distances.activity_distances.data_util.algorithm import get_cosine_distance_dict
-from tabulate import tabulate
-
+sys.setrecursionlimit(1000000)
 
 def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
     event_log = EventLog()
