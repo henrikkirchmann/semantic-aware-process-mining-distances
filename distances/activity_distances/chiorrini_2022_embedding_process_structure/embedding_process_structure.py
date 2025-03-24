@@ -40,7 +40,7 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
 
     start = time.perf_counter()
 
-    net_or, im, fm = pm4py.discover_petri_net_inductive(event_log, multi_processing=True)
+    net_or, im, fm = pm4py.discover_petri_net_inductive(event_log, multi_processing=1)
     end = time.perf_counter()
     print(f"discovery time: {end - start:.6f} seconds")
 
