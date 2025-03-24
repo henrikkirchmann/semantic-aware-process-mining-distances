@@ -52,7 +52,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         total_cores = multiprocessing.cpu_count()
 
         # Calculate 75% of the available cores
-        cores_to_use = int(total_cores * 0.7)
+        cores_to_use = int(total_cores * 0.8)
 
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
@@ -203,7 +203,7 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - activity_distance_functions we want to evaluate
     activity_distance_functions = list()
-    """ 
+    #"""
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
@@ -226,13 +226,13 @@ if __name__ == '__main__':
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
-    """
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    #"""
+    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
 
 
     ##############################################################################
     r_min = 10
-    w = 10
+    w = 5
     sampling_size = 10
 
     window_size_list = [3,5,9]
@@ -243,12 +243,12 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    #log_list.append("BPIC12")
+    #log_list.append("BPIC15_1")
     log_list.append("Sepsis")
     #log_list.append("repairExample")
     #log_list.append("bpic_2015")
     #log_list.append("Sepsis")
-    #log_list.append("Road Traffic Fine Management Process")
+    #log_list.append("BPIC13_closed_problems")
     # log_list.append("bpic_2015")
     # log_list.append("PDC 2016")
     #log_list.append("BPI Challenge 2015 1")
