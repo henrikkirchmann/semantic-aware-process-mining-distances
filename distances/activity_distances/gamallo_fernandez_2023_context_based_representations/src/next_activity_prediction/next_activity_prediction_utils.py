@@ -22,7 +22,7 @@ b =  {('Analyze Defect', 'Analyze Defect'): 0.292081962513166, ('Analyze Defect'
 
 transform_bose_similarity_to_distance(b)
 
-#"""
+"""
 def get_embeddings(activity_distance_functions, log,
                                       n_gram_size_bose_2009=3):
     for activity_distance_function in activity_distance_functions:
@@ -61,4 +61,4 @@ def get_embeddings(activity_distance_functions, log,
                 activity_distance_matrix_dict[activity_distance_function][
                     key] = embedding_process_structure_distance_matrix
     return dict(activity_distance_matrix_dict)
-#"""
+"""
