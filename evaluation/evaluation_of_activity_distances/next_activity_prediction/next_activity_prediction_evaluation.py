@@ -3,18 +3,37 @@ Standalone Training and Next-Activity Prediction Script Using Pre-Split XES File
 
 This script loads a full XES log (from raw_datasets) and pre-split training, validation, and test
 XES files (from split_datasets). It uses PM4Py to load the logs and converts each trace into a list of tokens.
-Activity embeddings are computed from the validation set via one of our intrinsic methods.
-Then the script vectorizes the traces (replacing one-hot with the computed embedding vectors),
-builds an LSTM model, trains it (if enabled), and finally evaluates next-activity prediction.
+You can choose whether to use:
+  - The computed activity embeddings (via one of our intrinsic methods), OR
+  - The original one-hot encodings.
+Moreover, you can choose which log to compute the embeddings from:
+  - "train" for training set,
+  - "validation" for validation set,
+  - "train_val" for the combination of training and validation.
+The chosen representation is then used in the LSTM model.
 Only next-activity prediction is performed here.
 
 Author: Modified for standalone use
 """
+import os, sys
 
-import os, sys, time, copy, random
+# -----------------------
+# Set cuDNN environment variables (must be set before TensorFlow is imported)
+if os.environ.get("MY_CUDNN_SET") != "true":
+    os.environ["LD_LIBRARY_PATH"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib:" + os.environ.get("LD_LIBRARY_PATH", "")
+    os.environ["LD_PRELOAD"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib/libcudnn.so.8.9.6"
+    os.environ["MY_CUDNN_SET"] = "true"
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+# Now it's safe to import TensorFlow.
+import tensorflow as tf
+print("TensorFlow version:", tf.__version__)
+print("GPUs available:", tf.config.list_physical_devices('GPU'))
+
+import copy, random
 from datetime import datetime, timedelta
 import numpy as np
-import tensorflow as tf
+
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, LSTM, BatchNormalization, Input
 from tensorflow.keras.optimizers import Nadam
@@ -35,24 +54,28 @@ tf.compat.v1.set_random_seed(42)
 random.seed(42)
 np.random.seed(42)
 
+# -----------------------
+# Select Encoding Mode:
+# Set encoding_mode to "embedding" or "one_hot"
+encoding_mode = "one_hot"  # Change to "one_hot" for one-hot encodings.
+use_one_hot = (encoding_mode == "one_hot")
+print("Encoding mode:", encoding_mode)
+selected_embedding_method = encoding_mode
+# -----------------------
+# Select Embedding Source:
+# Set embedding_source to "train", "validation", or "train_val"
+embedding_source = "train_val"  # Options: "train_val", "validation", "train_val"
+print("Embedding source:", embedding_source)
+
 # --------------------------------------------------
 # HARD-CODED PATHS FOR PRE-SPLIT XES FILES
 # --------------------------------------------------
-# Update these paths to where you downloaded the PredictiveMonitoringDatasets repo.
-# Here we assume the raw full log is in "raw_datasets" and the pre-split files are in "split_datasets".
 from definitions import ROOT_DIR
-
 path_to_na = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "next_activity_prediction")
-
-# For example, using BPI_Challenge_2012_A:
-full_dataset = os.path.join(path_to_na, "raw_datasets", "BPI_Challenge_2012_A.xes.gz")
-
-train_dataset = os.path.join(path_to_na, "split_datasets", "train_BPI_Challenge_2012_A.xes.gz")
-
-val_dataset   = os.path.join(path_to_na, "split_datasets", "val_BPI_Challenge_2012_A.xes.gz")
-
-test_dataset  = os.path.join(path_to_na, "split_datasets", "test_BPI_Challenge_2012_A.xes.gz")
-
+full_dataset = os.path.join(path_to_na, "raw_datasets", "SEPSIS.xes.gz")
+train_dataset = os.path.join(path_to_na, "split_datasets", "train_SEPSIS.xes.gz")
+val_dataset   = os.path.join(path_to_na, "split_datasets", "val_SEPSIS.xes.gz")
+test_dataset  = os.path.join(path_to_na, "split_datasets", "test_SEPSIS.xes.gz")
 
 # --------------------------------------------------
 # DATA LOADING: Using PM4Py to load XES files and converting each trace to a list of tokens.
@@ -60,25 +83,14 @@ test_dataset  = os.path.join(path_to_na, "split_datasets", "test_BPI_Challenge_2
 from pm4py.objects.log.importer.xes import importer as xes_importer
 
 def load_file_xes(file_path):
-    """
-    Loads an XES log and converts each trace into:
-      - a list of activity tokens (ending with '!' as termination)
-      - lists of time differences:
-            times: time since previous event (in seconds)
-            times2: time since start of trace
-            times3: seconds since midnight for each event
-            times4: weekday (0=Monday, …, 6=Sunday)
-      - a list of case IDs
-    """
     log = xes_importer.apply(file_path)
-    lines = []       # List of traces; each trace is a list of tokens.
-    timeseqs = []    # List of lists of time differences (since previous event)
-    timeseqs2 = []   # List of lists: time since start of trace (in seconds)
-    timeseqs3 = []   # List of lists: seconds since midnight for each event
-    timeseqs4 = []   # List of lists: weekday for each event
+    lines = []       # List of traces (list of tokens)
+    timeseqs = []    # List of time differences (since previous event)
+    timeseqs2 = []   # Time since start (seconds)
+    timeseqs3 = []   # Seconds since midnight for each event
+    timeseqs4 = []   # Weekday for each event
     caseids = []
     for trace in log:
-        # Try to get a case id, or generate one.
         caseid = trace.attributes.get("concept:name", "case_" + str(len(caseids)))
         caseids.append(caseid)
         tokens = []
@@ -105,7 +117,6 @@ def load_file_xes(file_path):
             times3.append(diff3)
             times4.append(diff4)
             lastevent = timestamp
-        # Append termination token '!'
         tokens.append('!')
         lines.append(tokens)
         timeseqs.append(times)
@@ -114,7 +125,6 @@ def load_file_xes(file_path):
         timeseqs4.append(times4)
     return lines, timeseqs, timeseqs2, timeseqs3, timeseqs4, caseids
 
-# Load logs from pre-split files
 print("Loading full log from:", full_dataset)
 lines_full, ts_full, ts2_full, ts3_full, ts4_full, caseids_full = load_file_xes(full_dataset)
 print("Loading training log from:", train_dataset)
@@ -124,11 +134,8 @@ lines_val, ts_val, ts2_val, ts3_val, ts4_val, caseids_val = load_file_xes(val_da
 print("Loading test log from:", test_dataset)
 lines_test, ts_test, ts2_test, ts3_test, ts4_test, caseids_test = load_file_xes(test_dataset)
 
-# Compute maximum trace length over the full log
 maxlen = max(len(trace) for trace in lines_full)
 print("Maximum trace length:", maxlen)
-
-# Compute time divisors based only on the training set (for normalization)
 all_times = [t for trace in ts_train for t in trace]
 divisor = np.mean(all_times) if all_times else 1
 all_times2 = [t for trace in ts2_train for t in trace]
@@ -136,9 +143,8 @@ divisor2 = np.mean(all_times2) if all_times2 else 1
 print("Time divisor (avg time diff):", divisor)
 print("Time divisor2 (avg time since start):", divisor2)
 
-# Build the vocabulary for target activities from the full log.
+# Build vocabulary for target activities from the full log.
 vocab = sorted(set(token for trace in lines_full for token in trace))
-# We need to keep the termination token for target encoding.
 target_tokens = copy.copy(vocab)
 if '!' in vocab:
     vocab.remove('!')
@@ -148,53 +154,64 @@ indices_token = {i: token for i, token in enumerate(target_tokens)}
 # --------------------------------------------------
 # EMBEDDING EXTRACTION FUNCTIONS
 # --------------------------------------------------
-# We use our two methods (from our project files) to compute activity embeddings.
+# If using embedding mode, choose which log to use:
+if not use_one_hot:
+    # Decide the source of embeddings:
+    if embedding_source == "train":
+        embedding_input = lines_train
+    elif embedding_source == "validation":
+        embedding_input = lines_val
+    elif embedding_source == "train_val":
+        embedding_input = lines_train + lines_val
+    else:
+        raise ValueError("Unknown embedding_source: choose 'train', 'validation', or 'train_val'.")
 
-from distances.activity_distances.activity_context_frequency.activity_contex_frequency import get_activity_context_frequency_matrix
-from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import get_activity_activity_co_occurence_matrix
+    from distances.activity_distances.activity_context_frequency.activity_contex_frequency import get_activity_context_frequency_matrix
+    from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import get_activity_activity_co_occurence_matrix
 
-def get_activity_embeddings_from_val_context_frequency(lines_val, ngram_size=3):
-    # Prepare the log as a list of lists (without termination token)
-    log_val = [trace[:-1] for trace in lines_val]  # remove '!'
-    alphabet_val = sorted(set(token for trace in log_val for token in trace))
-    # get_activity_context_frequency_matrix returns: distance_matrix, embeddings, ...
-    _, embeddings, _, _, _ = get_activity_context_frequency_matrix(log_val, alphabet_val, ngram_size, bag_of_words=2)
-    return embeddings
+    def get_activity_embeddings_from_val_context_frequency(lines, ngram_size=3):
+        log_input = [trace[:-1] for trace in lines]
+        alphabet_input = sorted(set(token for trace in log_input for token in trace))
+        _, embeddings, _, _, _ = get_activity_context_frequency_matrix(log_input, alphabet_input, ngram_size, bag_of_words=2)
+        return embeddings
 
-def get_activity_embeddings_from_val_activity_cooccurrence(lines_val, ngram_size=3, bag_of_words=False):
-    log_val = [trace[:-1] for trace in lines_val]
-    alphabet_val = sorted(set(token for trace in log_val for token in trace))
-    _, embeddings, _, _ = get_activity_activity_co_occurence_matrix(log_val, alphabet_val, ngram_size, bag_of_words)
-    return embeddings
+    def get_activity_embeddings_from_val_activity_cooccurrence(lines, ngram_size=3, bag_of_words=False):
+        log_input = [trace[:-1] for trace in lines]
+        alphabet_input = sorted(set(token for trace in log_input for token in trace))
+        _, embeddings, _, _ = get_activity_activity_co_occurence_matrix(log_input, alphabet_input, ngram_size, bag_of_words)
+        return embeddings
 
-# Select which embedding method to use (hard-coded)
-selected_embedding_method = "activity_cooccurrence"
-if selected_embedding_method == "context_frequency":
-    activity_embeddings = get_activity_embeddings_from_val_context_frequency(lines_val)
-elif selected_embedding_method == "activity_cooccurrence":
-    activity_embeddings = get_activity_embeddings_from_val_activity_cooccurrence(lines_val)
+    # Select which embedding method to use:
+    #selected_embedding_method = "activity_cooccurrence"
+    if selected_embedding_method == "context_frequency":
+        activity_embeddings = get_activity_embeddings_from_val_context_frequency(embedding_input)
+    elif selected_embedding_method == "activity_cooccurrence":
+        activity_embeddings = get_activity_embeddings_from_val_activity_cooccurrence(embedding_input)
+    else:
+        raise ValueError("Unknown embedding method")
+    encoding_dim = len(next(iter(activity_embeddings.values())))
+    print("Using embedding method:", selected_embedding_method, "with embedding dimension:", encoding_dim)
 else:
-    raise ValueError("Unknown embedding method")
-embedding_dim = len(next(iter(activity_embeddings.values())))
-num_features = embedding_dim + 5
-print("Using embedding method:", selected_embedding_method, "with embedding dimension:", embedding_dim)
+    # One-hot mode: use vocabulary dimension.
+    encoding_dim = len(vocab)
+    print("Using original one-hot encodings with dimension:", encoding_dim)
+
+# Total input features = encoding_dim + 5 (for time features)
+num_features = encoding_dim + 5
+
+if use_one_hot:
+    one_hot_indices = {token: i for i, token in enumerate(vocab)}
 
 # --------------------------------------------------
-# VECTORIZATION FUNCTION (for preprocessed traces)
+# VECTORIZATION FUNCTION
 # --------------------------------------------------
-def vectorize_fold(lines_fold, ts_fold, ts2_fold, ts3_fold, ts4_fold, divisor, divisor2, activity_embeddings, embedding_dim):
-    """
-    For each trace (a list of tokens), create multiple prefix sequences.
-    Each sequence is left-padded to maxlen and includes the embedding vector for the activity.
-    Also constructs one-hot encoded target vectors.
-    """
+def vectorize_fold(lines_fold, ts_fold, ts2_fold, ts3_fold, ts4_fold, divisor, divisor2, use_one_hot, encoding_dim, activity_embeddings=None):
     sentences = []
     next_tokens = []
     sent_ts = []
     sent_ts2 = []
     sent_ts3 = []
     sent_ts4 = []
-    # Create prefixes from each trace (skip empty prefix)
     for tokens, t_seq, t2_seq, t3_seq, t4_seq in zip(lines_fold, ts_fold, ts2_fold, ts3_fold, ts4_fold):
         for i in range(1, len(tokens)):
             sentences.append(tokens[:i])
@@ -204,53 +221,58 @@ def vectorize_fold(lines_fold, ts_fold, ts2_fold, ts3_fold, ts4_fold, divisor, d
             sent_ts4.append(t4_seq[:i])
             next_tokens.append(tokens[i])
     print("Number of sequences:", len(sentences))
-    X = np.zeros((len(sentences), maxlen, embedding_dim + 5), dtype=np.float32)
+    X = np.zeros((len(sentences), maxlen, encoding_dim + 5), dtype=np.float32)
     y_act = np.zeros((len(sentences), len(target_tokens)), dtype=np.float32)
     y_time = np.zeros((len(sentences)), dtype=np.float32)
     for i, sentence in enumerate(sentences):
         leftpad = maxlen - len(sentence)
         for t, token in enumerate(sentence):
-            # Look up the embedding vector (if not found, use zeros)
-            if token in activity_embeddings:
-                X[i, t + leftpad, :embedding_dim] = activity_embeddings[token]
+            if use_one_hot:
+                if token in one_hot_indices:
+                    X[i, t + leftpad, one_hot_indices[token]] = 1
             else:
-                X[i, t + leftpad, :embedding_dim] = np.zeros(embedding_dim)
-            # Additional features:
-            X[i, t + leftpad, embedding_dim]     = t + 1
-            X[i, t + leftpad, embedding_dim + 1] = sent_ts[i][t] / divisor
-            X[i, t + leftpad, embedding_dim + 2] = sent_ts2[i][t] / divisor2
-            X[i, t + leftpad, embedding_dim + 3] = sent_ts3[i][t] / 86400
-            X[i, t + leftpad, embedding_dim + 4] = sent_ts4[i][t] / 7
-        # Build one-hot target vector for next token
+                if token in activity_embeddings:
+                    X[i, t + leftpad, :encoding_dim] = activity_embeddings[token]
+                else:
+                    X[i, t + leftpad, :encoding_dim] = np.zeros(encoding_dim)
+            X[i, t + leftpad, encoding_dim]     = t + 1
+            X[i, t + leftpad, encoding_dim + 1] = sent_ts[i][t] / divisor
+            X[i, t + leftpad, encoding_dim + 2] = sent_ts2[i][t] / divisor2
+            X[i, t + leftpad, encoding_dim + 3] = sent_ts3[i][t] / 86400
+            X[i, t + leftpad, encoding_dim + 4] = sent_ts4[i][t] / 7
         target = next_tokens[i]
         for token in target_tokens:
             if token == target:
                 y_act[i, target_token_indices[token]] = 1
-        # For time prediction target, use the next time diff (normalized)
         y_time[i] = sent_ts[i][-1] / divisor
     return X, target_token_indices, y_act, y_time
 
-# Vectorize each fold using our new function:
-X_full, _, y_act_full, y_time_full = vectorize_fold(lines_full, ts_full, ts2_full, ts3_full, ts4_full, divisor, divisor2, activity_embeddings, embedding_dim)
-X_train, _, y_act_train, y_time_train = vectorize_fold(lines_train, ts_train, ts2_train, ts3_train, ts4_train, divisor, divisor2, activity_embeddings, embedding_dim)
-X_val, _, y_act_val, y_time_val = vectorize_fold(lines_val, ts_val, ts2_val, ts3_val, ts4_val, divisor, divisor2, activity_embeddings, embedding_dim)
-X_test, _, y_act_test, y_time_test = vectorize_fold(lines_test, ts_test, ts2_test, ts3_test, ts4_test, divisor, divisor2, activity_embeddings, embedding_dim)
+if use_one_hot:
+    X_full, _, y_act_full, y_time_full = vectorize_fold(lines_full, ts_full, ts2_full, ts3_full, ts4_full, divisor, divisor2, use_one_hot, encoding_dim)
+    X_train, _, y_act_train, y_time_train = vectorize_fold(lines_train, ts_train, ts2_train, ts3_train, ts4_train, divisor, divisor2, use_one_hot, encoding_dim)
+    X_val, _, y_act_val, y_time_val = vectorize_fold(lines_val, ts_val, ts2_val, ts3_val, ts4_val, divisor, divisor2, use_one_hot, encoding_dim)
+    X_test, _, y_act_test, y_time_test = vectorize_fold(lines_test, ts_test, ts2_test, ts3_test, ts4_test, divisor, divisor2, use_one_hot, encoding_dim)
+else:
+    X_full, _, y_act_full, y_time_full = vectorize_fold(lines_full, ts_full, ts2_full, ts3_full, ts4_full, divisor, divisor2, use_one_hot, encoding_dim, activity_embeddings)
+    X_train, _, y_act_train, y_time_train = vectorize_fold(lines_train, ts_train, ts2_train, ts3_train, ts4_train, divisor, divisor2, use_one_hot, encoding_dim, activity_embeddings)
+    X_val, _, y_act_val, y_time_val = vectorize_fold(lines_val, ts_val, ts2_val, ts3_val, ts4_val, divisor, divisor2, use_one_hot, encoding_dim, activity_embeddings)
+    X_test, _, y_act_test, y_time_test = vectorize_fold(lines_test, ts_test, ts2_test, ts3_test, ts4_test, divisor, divisor2, use_one_hot, encoding_dim, activity_embeddings)
 
 # --------------------------------------------------
 # BUILD THE MODEL
 # --------------------------------------------------
 print("Building model...")
 main_input = Input(shape=(maxlen, num_features), name='main_input')
-l1 = LSTM(100, implementation=2, kernel_initializer='glorot_uniform', return_sequences=True, dropout=0.2)(main_input)
+l1 = LSTM(100, kernel_initializer='glorot_uniform', return_sequences=True, dropout=0.2, unroll=True)(main_input)
 b1 = BatchNormalization()(l1)
-l2_1 = LSTM(100, implementation=2, kernel_initializer='glorot_uniform', return_sequences=False, dropout=0.2)(b1)
+l2_1 = LSTM(100, kernel_initializer='glorot_uniform', return_sequences=False, dropout=0.2, unroll=True)(b1)
 b2_1 = BatchNormalization()(l2_1)
-l2_2 = LSTM(100, implementation=2, kernel_initializer='glorot_uniform', return_sequences=False, dropout=0.2)(b1)
+l2_2 = LSTM(100, kernel_initializer='glorot_uniform', return_sequences=False, dropout=0.2, unroll=True)(b1)
 b2_2 = BatchNormalization()(l2_2)
 act_output = Dense(len(target_tokens), activation='softmax', kernel_initializer='glorot_uniform', name='act_output')(b2_1)
 time_output = Dense(1, kernel_initializer='glorot_uniform', name='time_output')(b2_2)
 model = Model(inputs=[main_input], outputs=[act_output, time_output])
-opt = Nadam(lr=0.002, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004, clipvalue=3)
+opt = Nadam(learning_rate=0.002, beta_1=0.9, beta_2=0.999, epsilon=1e-08, clipvalue=3)
 model.compile(loss={'act_output': 'categorical_crossentropy', 'time_output': 'mae'},
               optimizer=opt,
               metrics={"act_output": "acc", "time_output": "mae"})
