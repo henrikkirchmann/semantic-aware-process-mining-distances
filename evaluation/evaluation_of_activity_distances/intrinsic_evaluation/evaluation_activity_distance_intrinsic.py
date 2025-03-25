@@ -246,8 +246,8 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    log_list = [
-                'BPIC19'
+    log_list = [                'BPIC15_1'
+
 ]
     #log_list.append("Sepsis")
     #log_list.append("repairExample")

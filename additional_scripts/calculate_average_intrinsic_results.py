@@ -39,6 +39,16 @@ all_logs = ['BPIC12',
 log_statistics = {}
 
 """
+
+            'BPIC15_1',
+            'BPIC15_2',
+            'BPIC15_3',
+            'BPIC15_4',
+            'BPIC15_5',
+            'BPIC19',
+                        'BPIC18',
+
+
 window_size_list = [3,5,9]
 r = 7
 w = 10
