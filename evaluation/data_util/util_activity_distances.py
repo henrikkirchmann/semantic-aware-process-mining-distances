@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import List
 import re
 import psutil
-
+import numpy as np
 from definitions import ROOT_DIR
 from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import \
     get_activity_activity_co_occurence_matrix
@@ -77,7 +77,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
 
         if activity_distance_function.startswith("Bose 2009 Substitution Scores"):
             for key in logs_with_replaced_activities_dict:
-                activity_distance_matrix = get_substitution_and_insertion_scores(
+                activity_distance_matrix, embedding = get_substitution_and_insertion_scores(
                     logs_with_replaced_activities_dict[key],
                     get_alphabet(
                         logs_with_replaced_activities_dict[
@@ -89,7 +89,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
             else:
                 sg = 1
             for key in logs_with_replaced_activities_dict:
-                act2vec_distance_matrix = get_act2vec_distance_matrix(logs_with_replaced_activities_dict[key],
+                act2vec_distance_matrix, embedding = get_act2vec_distance_matrix(logs_with_replaced_activities_dict[key],
                                                                       get_alphabet(
                                                                           logs_with_replaced_activities_dict[key]), sg, window_size)
                 activity_distance_matrix_dict[activity_distance_function][key] = act2vec_distance_matrix
@@ -99,7 +99,7 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                                                                               logs_with_replaced_activities_dict[key]), window_size)
         elif activity_distance_function.startswith("Unit Distance"):
             for key in logs_with_replaced_activities_dict:
-                unit_distance_matrix = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key],
+                unit_distance_matrix, emb = get_unit_cost_activity_distance_matrix(logs_with_replaced_activities_dict[key],
                                                                               get_alphabet(
                                                                                   logs_with_replaced_activities_dict[
                                                                                       key]))
@@ -291,7 +291,9 @@ def get_unit_cost_activity_distance_matrix(log, alphabet):
                 distances[(activity1, activity2)] = 0
             else:
                 distances[(activity1, activity2)] = 1
-    return distances
+    emb = {activity: np.eye(len(alphabet))[i] for i, activity in enumerate(alphabet)}
+
+    return distances, emb
 
 
 def delete_temporary_files():

@@ -61,7 +61,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
 
-        mp = 0
+        mp = 1
         if mp == 1:
             with Pool(processes=cores_to_use) as pool:
                 results = pool.map(intrinsic_evaluation, combinations)
@@ -205,6 +205,11 @@ if __name__ == '__main__':
     # intrinsic - activity_distance_functions we want to evaluate
 
     activity_distance_functions = list()
+    activity_distance_functions.append("Bose 2009 Substitution Scores")
+    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+
+
     """
     activity_distance_functions.append("Unit Distance")
     activity_distance_functions.append("Bose 2009 Substitution Scores")
@@ -229,7 +234,7 @@ if __name__ == '__main__':
     #activity_distance_functions.append("Activity-Context as Bag of Words as N-Grams PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
     """
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
 
 
 
@@ -246,7 +251,7 @@ if __name__ == '__main__':
     ##############################################################################
     # intrinsic - event logs we want to evaluate
     log_list = list()
-    log_list = [                'BPIC15_1'
+    log_list = [                'Sepsis'
 
 ]
     #log_list.append("Sepsis")
