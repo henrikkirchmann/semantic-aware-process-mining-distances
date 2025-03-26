@@ -114,10 +114,10 @@ def get_activity_distance_matrix_dict(activity_distance_functions, logs_with_rep
                     key] = embedding_process_structure_distance_matrix
         elif  "Gamallo Fernandez 2023 Context Based" in activity_distance_function:
             for key in logs_with_replaced_activities_dict:
-                auto_encoder_embedding = get_context_based_distance_matrix(
+                auto_encoder_cosine_matrix, embedding = get_context_based_distance_matrix(
                     logs_with_replaced_activities_dict[key], window_size)
                 activity_distance_matrix_dict[activity_distance_function][
-                    key] = auto_encoder_embedding
+                    key] = auto_encoder_cosine_matrix
         elif activity_distance_function.startswith("Activity-Activitiy Co Occurrence Bag Of Words"):
             for key in logs_with_replaced_activities_dict:
                 activity_distance_matrix_dict[activity_distance_function][
