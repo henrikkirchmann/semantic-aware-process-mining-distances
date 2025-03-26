@@ -137,7 +137,7 @@ def get_context_based_distance_matrix(control_flow_lists, window_size):
 
     #print(pairwise_cosine_distances)
 
-    return pairwise_cosine_distances
+    return pairwise_cosine_distances, attr_to_embedding_dict
 
 
 
