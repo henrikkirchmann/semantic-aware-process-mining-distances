@@ -3,7 +3,7 @@ from typing import List, Tuple, Dict
 
 from distances.activity_distances.data_util.algorithm import give_log_padding, get_ngrams_dict, get_context_dict
 from distances.activity_distances.bose_2009_context_aware_trace_clustering.substitution_scores import get_substitution_scores
-
+import numpy as np
 
 def get_substitution_and_insertion_scores(log, alphabet, ngram_size):
     log = give_log_padding(log, ngram_size)
@@ -17,8 +17,17 @@ def get_substitution_and_insertion_scores(log, alphabet, ngram_size):
     substitution_scores, probabilities_of_symbol_occurrence  = get_substitution_scores(alphabet, context_dict)
     #Algorithm 2: Algorithm to derive insertion scores
     #insertion_scores = get_insertion_scores(alphabet, context_dict, ngram_size, probabilities_of_symbol_occurrence)
+    # 1. Extract unique row labels (and assume the same set applies for columns)
+    keys = sorted({key[0] for key in substitution_scores.keys()})
+    # Optionally, verify that the same set exists in the second element of each key tuple:
+    assert keys == sorted({key[1] for key in substitution_scores.keys()}), "Matrix is not square."
 
-    return substitution_scores #, insertion_scores
+    # 2. Build the embedding dictionary where each row maps to its corresponding numpy array.
+    embedding_dict = {
+        row: np.array([substitution_scores[(row, col)] for col in keys])
+        for row in keys
+    }
+    return substitution_scores, embedding_dict #, insertion_scores
 
 #print(substitution_scores)
 #if 1:

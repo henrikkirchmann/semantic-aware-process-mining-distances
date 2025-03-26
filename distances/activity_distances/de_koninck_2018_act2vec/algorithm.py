@@ -3,7 +3,7 @@ from itertools import combinations
 import gensim
 import numpy as np
 from sklearn.manifold import TSNE  # final reduction
-
+from numpy.linalg import norm
 
 def get_act2vec_distance_matrix(log, alphabet, sg, window_size):
     vectorsize = 16
@@ -53,7 +53,39 @@ def get_act2vec_distance_matrix(log, alphabet, sg, window_size):
             distance = model.wv.distance(activity1, activity2)
             distances[(activity1, activity2)] = distance
 
-    return distances
+
+    embedding_dict = {word: model.wv[word] for word in model.wv.index_to_key}
+
+    # 1. Manually compute cosine distances between every pair of words
+    manual_distances = {}
+    for word1 in alphabet:
+        for word2 in alphabet:
+            vec1 = embedding_dict[word1]
+            vec2 = embedding_dict[word2]
+            # Compute cosine similarity: (dot product) / (norms product)
+            cos_sim = np.dot(vec1, vec2) / (norm(vec1) * norm(vec2))
+            # Cosine distance is defined as 1 - cosine similarity
+            cosine_distance = 1 - cos_sim
+            manual_distances[(word1, word2)] = cosine_distance
+
+    # 2. Compute distances using gensim's model.wv.distance for comparison
+    gensim_distances = {}
+    for word1 in alphabet:
+        for word2 in alphabet:
+            gensim_distances[(word1, word2)] = model.wv.distance(word1, word2)
+
+    # 3. Compare the results
+    differences = {}
+    for key in manual_distances:
+        diff = abs(manual_distances[key] - gensim_distances[key])
+        differences[key] = diff
+
+    # 4. Check maximum difference
+    max_diff = max(differences.values())
+    print("Maximum difference between manual cosine distance and model.wv.distance:", max_diff)
+
+
+    return distances, embedding_dict
 
 
 def reduce_dimensions(model):
