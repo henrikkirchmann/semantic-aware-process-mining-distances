@@ -16,7 +16,7 @@ from distances.activity_distances.gamallo_fernandez_2023_context_based_represent
 from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.utils import EmbType, Config, DataFrameFields
 import sys
 import shutil
-
+import random
 import pm4py
 from pm4py.objects.log.obj import EventLog, Trace, Event
 from pm4py.util.xes_constants import DEFAULT_NAME_KEY
@@ -36,8 +36,78 @@ from scipy.spatial.distance import cosine
 from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator import aerac
 from definitions import ROOT_DIR
 
+import math
+from itertools import product
+from scipy.spatial.distance import cosine
+from pathlib import Path
+
+# Assuming these functions are already imported:
+# transform_control_flow_lists_to_xes, write_csvs, read_input_args,
+# get_embeddings, delete_temporary_files
+# and classes: EmbGeneratorLogger, EventlogDataset, DataFrameFields, Config
+
+def get_context_based_distance_matrix(control_flow_lists, window_size):
+    # Convert the control flow lists to an XES file and then to CSV.
+    xes_filename, xes_log_path = transform_control_flow_lists_to_xes(control_flow_lists)
+    csv_path, config_csv_path, attr_dict = write_csvs(xes_filename, xes_log_path)
+    csv_filename = xes_filename.replace(".xes", ".csv")
+
+    # Setup sys.argv for holdout mode (train–val only).
+    sys.argv = [
+        "script.py",  # Fake script name (needed for argparse)
+        "--dataset", "data/" + csv_filename,
+        "--holdout",  # Use holdout mode instead of crossvalidation
+        "--aerac",
+        "--activity",
+        "--emb_size", "128",
+        "--win_size", str(math.floor((window_size - 1) / 2)),
+        "--print_console_file"
+    ]
+
+    args = read_input_args()
+    logger = EmbGeneratorLogger(args.print_mode)
+
+    # Run the model in holdout mode (no test set).
+    eventlog = EventlogDataset(args.dataset, cv_fold=None, read_test=False)
+    loss, list_embeddings, list_embeddings_2, acc = start(eventlog, args, logger)
+
+    logger.log_console(f'{str(args.emb_type)} VALIDATION LOSS: {loss:.6f}')
+
+    if list_embeddings_2 is not None:
+        Config.ATTR_TO_EMB = DataFrameFields.ACTIVITY_COLUMN
+        logger.save_embeddings_holdout(list_embeddings, eventlog.filename, str(args.emb_type),
+                                       args.emb_size, args.win_size)
+        Config.ATTR_TO_EMB = DataFrameFields.RESOURCE_COLUMN
+        logger.save_embeddings_holdout(list_embeddings_2, eventlog.filename, str(args.emb_type),
+                                       args.emb_size, args.win_size)
+    else:
+        logger.save_embeddings_holdout(list_embeddings, eventlog.filename, str(args.emb_type),
+                                       args.emb_size, args.win_size)
+
+    logger.log_loss_holdout(Path(args.dataset).stem, str(args.emb_type),
+                            args.emb_size, args.win_size, loss)
+
+    # Load embeddings from the current run (no multiple folds to choose from)
+    embeddings_dict = get_embeddings(eventlog.filename, Config.ATTR_TO_EMB, str(args.emb_type),
+                                     args.emb_size, args.win_size, logger)
+    attr_to_embedding_dict = {attr: embeddings_dict[id] for attr, id in attr_dict.items()}
+
+    # Calculate pairwise cosine distances between attribute embeddings.
+    pairwise_cosine_distances = {
+        (key1, key2): float(cosine(attr_to_embedding_dict[key1], attr_to_embedding_dict[key2]))
+        for key1, key2 in product(attr_to_embedding_dict.keys(), repeat=2)
+    }
+
+    delete_temporary_files(xes_log_path, csv_path, config_csv_path, eventlog.filename)
+
+    return pairwise_cosine_distances, attr_to_embedding_dict
 
 
+
+
+
+
+""" 
 def get_context_based_distance_matrix(control_flow_lists, window_size):
 
     xes_filename, xes_log_path = transform_control_flow_lists_to_xes(control_flow_lists)
@@ -46,11 +116,10 @@ def get_context_based_distance_matrix(control_flow_lists, window_size):
 
     csv_filename = xes_filename.replace(".xes", ".csv")
 
-
     sys.argv = [
         "script.py",  # Fake script name (needed for argparse)
         "--dataset", "data/" + csv_filename,
-        "--crossvalidation",
+        "--holdout",  # Use holdout mode instead of crossvalidation
         "--aerac",
         "--activity",
         "--emb_size", "200",
@@ -138,7 +207,7 @@ def get_context_based_distance_matrix(control_flow_lists, window_size):
     #print(pairwise_cosine_distances)
 
     return pairwise_cosine_distances, attr_to_embedding_dict
-
+    """
 
 
 
@@ -366,8 +435,8 @@ def transform_control_flow_lists_to_xes(control_flow_lists):
     # Generate output filename
     script_dir = os.path.dirname(os.path.abspath(__file__))
     process_id = os.getpid()
-    output_file_name = f"event_log_{process_id}.xes"
-    output_file = os.path.join(script_dir, f"event_log_{process_id}.xes")
+    output_file_name = f"event_log_{process_id + random.randint(0, 1000000000)}.xes"
+    output_file = os.path.join(script_dir, output_file_name)
 
     pm4py.write_xes(event_log, output_file)
 
@@ -391,8 +460,34 @@ def return_log(output_file):
         print("File does not exist.")
 
 
-def delete_temporary_files(xes_path, csv_path, config_csv_path):
+def delete_temporary_files(xes_path, csv_path, config_csv_path, eventlog_name):
+    log_csv_name  = os.path.basename(csv_path)
+    gamallo_dict = os.path.join(ROOT_DIR, "distances", "activity_distances", "gamallo_fernandez_2023_context_based_representations")
+    gamallo_data_dict = os.path.join(gamallo_dict, "data")
+    os.remove(csv_path)
+    os.remove(os.path.join(gamallo_data_dict, "holdout", f"train_{log_csv_name}"))
+    os.remove(os.path.join(gamallo_data_dict, "holdout", f"val_{log_csv_name}"))
 
+    gamallo_emb_dict = os.path.join(gamallo_dict, "embeddings")
+    shutil.rmtree(os.path.join(gamallo_emb_dict, "holdout", eventlog_name))
+
+    gamallo_logs_dict = os.path.join(gamallo_dict, "logs")
+    os.remove(os.path.join(gamallo_logs_dict, "holdout", eventlog_name + "_Activity_embeddings.csv"))
+
+    os.remove(xes_path)
+
+    #if os.path.exists(os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation", "models", eventlog_name)):
+    #    shutil.rmtree(os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation", "models", eventlog_name))
+
+
+    #os.path.join(config_csv_path, "holdout", f"tain_{config_csv_path}")
+    #os.path.join(config_csv_path, "holdout", f"val_{config_csv_path}")
+
+    #os.remove(    os.path.join(config_csv_path, "holdout", f"tain_{config_csv_path}"))
+    #os.remove(    os.path.join(config_csv_path, "holdout", f"val_{config_csv_path}"))
+
+    #print("a")
+    """ for cross fold cleanup
     os.remove(xes_path)
     os.remove(csv_path)
 
@@ -406,5 +501,5 @@ def delete_temporary_files(xes_path, csv_path, config_csv_path):
         os.remove(cv_path + "fold" + str(i) + "_train_" + filename)
         os.remove(cv_path + "fold" + str(i) + "_val_" + filename)
         os.remove(cv_path + "fold" + str(i) + "_test_" + filename)
-    
+    """
     return

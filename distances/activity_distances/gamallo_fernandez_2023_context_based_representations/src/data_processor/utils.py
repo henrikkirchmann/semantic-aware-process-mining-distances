@@ -207,6 +207,32 @@ def make_crossvalidation(full_csv_path: str):
 
 
 def make_holdout(full_csv_path: str):
+    full_df = pd.read_csv(full_csv_path)
+
+    df_groupby = full_df.groupby(DataFrameFields.CASE_COLUMN, sort=False)
+    groups = [group for _, group in df_groupby]
+
+    # Split groups into 80% training and 20% validation
+    first_cut = round(len(groups) * 0.8)
+    train_groups = groups[:first_cut]
+    val_groups = groups[first_cut:]
+
+    train_df = pd.concat(train_groups)
+    val_df = pd.concat(val_groups)
+
+    filename = Path(full_csv_path).stem + ".csv"
+    if Config.CSV_PATH:
+        folder = Config.CSV_PATH
+    else:
+        folder = str(Path(full_csv_path).parent)
+    holdout_path = os.path.join(folder, "holdout")
+    if not os.path.exists(holdout_path):
+        os.makedirs(holdout_path)
+
+    train_df.to_csv(os.path.join(holdout_path, "train_" + filename), index=False)
+    val_df.to_csv(os.path.join(holdout_path, "val_" + filename), index=False)
+
+def make_holdout_old(full_csv_path: str):
     """
     Create the train-val-test splits and store them
     :param full_csv_path: Full path to the CSV file with the dataset

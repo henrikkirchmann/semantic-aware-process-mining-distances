@@ -17,7 +17,7 @@ def write_csvs(xes_file_name, output_file):
     sys.argv = [
         "script.py",  # Fake script name (needed for argparse)
         "--dataset", output_file,  # Single dataset mode
-        "--crossvalidation",  # Enables cross-validation
+        "--holdout",  # Enables cross-validation
         "--activity",  # Extract ActivityID column
         "--timestamp",  # Extract Timestamp column
         "--stats",  # Print dataset statistics

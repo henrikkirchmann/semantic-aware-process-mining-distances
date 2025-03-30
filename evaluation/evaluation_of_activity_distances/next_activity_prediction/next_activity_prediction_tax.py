@@ -33,6 +33,21 @@ import os, sys, copy, random, time, re
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
+from distances.activity_distances.pmi.pmi import \
+    get_activity_context_frequency_matrix_pmi, get_activity_activity_frequency_matrix_pmi
+from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
+    get_substitution_and_insertion_scores
+from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
+from distances.activity_distances.de_koninck_2018_act2vec.our_hyperparas import get_act2vec_distance_matrix_our
+from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import \
+    get_activity_activity_co_occurence_matrix
+from distances.activity_distances.activity_context_frequency.activity_contex_frequency import \
+    get_activity_context_frequency_matrix
+from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import \
+    get_embedding_process_structure_distance_matrix
+from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import \
+    get_context_based_distance_matrix
+
 # -----------------------
 # Set cuDNN environment variables (must be set before TensorFlow is imported)
 if os.environ.get("MY_CUDNN_SET") != "true":
@@ -44,13 +59,18 @@ if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ["MY_CUDNN_SET"] = "true"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+#os.environ["TF_DETERMINISTIC_OPS"] = "1"
+
 import tensorflow as tf
+# Set TensorFlow seeds to reduce randomness.
+tf.compat.v1.set_random_seed(42)
+tf.random.set_seed(42)
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, LSTM, BatchNormalization, Input
 from tensorflow.keras.optimizers import Nadam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
-
 
 print("TensorFlow version:", tf.__version__)
 print("GPUs available:", tf.config.list_physical_devices('GPU'))
@@ -65,7 +85,7 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-tf.compat.v1.set_random_seed(42)
+# Set other seeds for reproducibility.
 random.seed(42)
 np.random.seed(42)
 
@@ -92,13 +112,16 @@ from definitions import ROOT_DIR
 NA_DIR = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "next_activity_prediction")
 RAW_DATASETS_DIR = os.path.join(NA_DIR, "raw_datasets")
 SPLIT_DATASETS_DIR = os.path.join(NA_DIR, "split_datasets")
-RESULTS_DIR = os.path.join(NA_DIR, "results")
-MODELS_DIR = os.path.join(NA_DIR, "models")
+RESULTS_DIR = os.path.join(NA_DIR, "results_tax")
+MODELS_DIR = os.path.join(NA_DIR, "models_tax")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 """
-  "De Koninck 2018 act2vec skip-gram",
+ 
+        "one_hot",
+    "De Koninck 2018 act2vec skip-gram",
+    "De Koninck 2018 act2vec CBOW",
     "Activity-Activitiy Co Occurrence Bag Of Words",
     "Activity-Activitiy Co Occurrence N-Gram",
     "Activity-Activitiy Co Occurrence Bag Of Words PMI",
@@ -111,26 +134,47 @@ os.makedirs(MODELS_DIR, exist_ok=True)
     "Activity-Context N-Grams PMI",
     "Activity-Context Bag Of Words PPMI",
     "Activity-Context N-Grams PPMI",
-    "Chiorrini 2022 Embedding Process Structure"
+    "Bose 2009 Substitution Scores",
+    "Chiorrini 2022 Embedding Process Structure",
+    "Gamallo Fernandez 2023 Context Based"
 """
 
 # -----------------------
 # Supported Encoding Methods.
 encoding_methods = [
-    "one_hot",  # baseline
-    "Unit Distance",
-    "Bose 2009 Substitution Scores",
+    "one_hot",
+    "Uniform Zero Embedding",
+    "Random Uniform Embedding",
+    "De Koninck 2018 act2vec skip-gram",
     "De Koninck 2018 act2vec CBOW",
+    "Activity-Activitiy Co Occurrence Bag Of Words",
     "Activity-Activitiy Co Occurrence N-Gram",
-    "Chiorrini 2022 Embedding Process Structure"
+    "Activity-Activitiy Co Occurrence Bag Of Words PMI",
+    "Activity-Activitiy Co Occurrence N-Gram PMI",
+    "Activity-Activitiy Co Occurrence Bag Of Words PPMI",
+    "Activity-Activitiy Co Occurrence N-Gram PPMI",
+    "Activity-Context Bag Of Words",
+    "Activity-Context N-Grams",
+    "Activity-Context Bag Of Words PMI",
+    "Activity-Context N-Grams PMI",
+    "Activity-Context Bag Of Words PPMI",
+    "Activity-Context N-Grams PPMI",
+    "Bose 2009 Substitution Scores",
+    "Chiorrini 2022 Embedding Process Structure",
 ]
+
+encoding_methods = [
+    "one_hot",
+    "Uniform Zero Embedding",
+    "Random Uniform Embedding"]
 # Optionally, add window size variations.
 from evaluation.data_util.util_activity_distances_intrinsic import add_window_size_evaluation
 
 window_size_list = [3, 5, 9]
-window_size_list = [3]
+# For reproducibility, you can choose a single window size.
 
 encoding_methods = add_window_size_evaluation(encoding_methods, window_size_list)
+#encoding_methods = ["Gamallo Fernandez 2023 Context Based w_3"]
 print("Encoding methods to evaluate:")
 print(encoding_methods)
 
@@ -188,10 +232,7 @@ def extract_window_size(s):
     return int(match.group(1)) if match else 3
 
 
-# -----------------------
-# Embedding Computation.
-# (Now both Bose and De Koninck methods return computed embeddings.)
-def get_embeddings_for_method(method, embedding_input, ngram_size=3):
+def get_embeddings_for_method(method, embedding_input):
     # Remove termination tokens.
     log_input = [trace[:-1] for trace in embedding_input]
     alphabet = sorted(set(token for trace in log_input for token in trace))
@@ -199,40 +240,39 @@ def get_embeddings_for_method(method, embedding_input, ngram_size=3):
     if method == "one_hot":
         emb = {activity: np.eye(len(alphabet))[i] for i, activity in enumerate(alphabet)}
         return emb, len(alphabet)
+    elif method == "Uniform Zero Embedding":
+        # Each activity gets a zero vector of dimension equal to number of unique activities.
+        emb = {activity: np.zeros(len(alphabet)) for activity in alphabet}
+        return emb, len(alphabet)
+    elif method == "Random Uniform Embedding":
+        # Each activity gets a random vector with values in the range [-10, 10]
+        emb = {activity: np.random.uniform(-10, 10, size=(len(alphabet),)) for activity in alphabet}
+        return emb, len(alphabet)
     elif method.startswith("Unit Distance"):
         emb = {activity: np.eye(len(alphabet))[i] for i, activity in enumerate(alphabet)}
         return emb, len(alphabet)
     elif method.startswith("Bose 2009 Substitution Scores"):
-        from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
-            get_substitution_and_insertion_scores
-        # Now assume get_substitution_and_insertion_scores returns (distance_matrix, embeddings)
         _, emb = get_substitution_and_insertion_scores(log_input, alphabet, win_size)
         return emb, len(alphabet)
     elif method.startswith("De Koninck 2018 act2vec"):
-        from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
         sg = 0 if "CBOW" in method else 1
-        # Assume get_act2vec_distance_matrix returns (distance_matrix, embeddings)
         _, emb = get_act2vec_distance_matrix(log_input, alphabet, sg, win_size)
-        return emb, len(alphabet)
+        return emb, len(next(iter(emb.values())))
     elif method.startswith("Our act2vec"):
-        from distances.activity_distances.de_koninck_2018_act2vec.our_hyperparas import get_act2vec_distance_matrix_our
         emb = get_act2vec_distance_matrix_our(log_input, alphabet, win_size)
         return emb, len(next(iter(emb.values())))
     elif method.startswith("Activity-Activitiy Co Occurrence"):
-        from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import \
-            get_activity_activity_co_occurence_matrix, get_activity_activity_frequency_matrix_pmi
         bag = True if "Bag Of Words" in method else False
         _, emb, activity_freq_dict, activity_index = get_activity_activity_co_occurence_matrix(log_input, alphabet,
                                                                                                win_size,
                                                                                                bag_of_words=bag)
         if "PPMI" in method:
-            emb, _ = get_activity_activity_frequency_matrix_pmi(emb, activity_freq_dict, activity_index, 1)
+            _, emb = get_activity_activity_frequency_matrix_pmi(emb, activity_freq_dict, activity_index, 1)
+            return emb, len(next(iter(emb.values())))
         elif "PMI" in method:
-            emb, _ = get_activity_activity_frequency_matrix_pmi(emb, activity_freq_dict, activity_index, 0)
+            _, emb = get_activity_activity_frequency_matrix_pmi(emb, activity_freq_dict, activity_index, 0)
         return emb, len(next(iter(emb.values())))
     elif method.startswith("Activity-Context"):
-        from distances.activity_distances.activity_context_frequency.activity_contex_frequency import \
-            get_activity_context_frequency_matrix, get_activity_context_frequency_matrix_pmi
         if "Bag Of Words" in method and "N-Grams" not in method:
             bag_mode = 2
         elif "N-Grams" in method:
@@ -244,24 +284,22 @@ def get_embeddings_for_method(method, embedding_input, ngram_size=3):
                                                                                                              win_size,
                                                                                                              bag_of_words=bag_mode)
         if "PPMI" in method:
-            emb, _ = get_activity_context_frequency_matrix_pmi(emb, activity_freq_dict, context_freq_dict,
+            _, emb = get_activity_context_frequency_matrix_pmi(emb, activity_freq_dict, context_freq_dict,
                                                                context_index, 1)
+            return emb, len(next(iter(emb.values())))
         elif "PMI" in method:
-            emb, _ = get_activity_context_frequency_matrix_pmi(emb, activity_freq_dict, context_freq_dict,
+            _, emb = get_activity_context_frequency_matrix_pmi(emb, activity_freq_dict, context_freq_dict,
                                                                context_index, 0)
         return emb, len(next(iter(emb.values())))
     elif method.startswith("Chiorrini 2022 Embedding Process Structure"):
-        from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import \
-            get_embedding_process_structure_distance_matrix
         _, emb = get_embedding_process_structure_distance_matrix(log_input, alphabet, False)
         return emb, len(next(iter(emb.values())))
     elif method.startswith("Gamallo Fernandez 2023 Context Based"):
-        from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import \
-            get_context_based_distance_matrix
-        emb = get_context_based_distance_matrix(log_input, win_size)
+        _, emb = get_context_based_distance_matrix(log_input, win_size)
         return emb, len(next(iter(emb.values())))
     else:
         raise ValueError("Unknown encoding method: " + method)
+
 
 
 # -----------------------
@@ -363,6 +401,7 @@ for raw_log in raw_logs:
                 except Exception as e:
                     print(f"Error computing embeddings for method {method} on log {log_name}: {e}")
                     continue
+
         print("Final encoding dimension for", log_name, "with method", method, ":", encoding_dim)
         total_features = encoding_dim + 5
 
@@ -417,12 +456,12 @@ for raw_log in raw_logs:
                                            save_best_only=True, save_weights_only=False)
         lr_reducer = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, min_delta=0.0001)
 
-        # Train the model.
+        # Train the model. Note: shuffle is disabled for reproducibility.
         print("Training model for log", log_name, "with method", method)
         model.fit(X_train, {'act_output': y_act_train, 'time_output': y_time_train},
                   validation_data=(X_val, {"act_output": y_act_val, "time_output": y_time_val}),
                   verbose=1, callbacks=[early_stopping, model_checkpoint, lr_reducer],
-                  batch_size=BATCH_SIZE, epochs=EPOCHS)
+                  batch_size=BATCH_SIZE, epochs=EPOCHS, shuffle=False)
 
         # Evaluate the model.
         print("Evaluating model for log", log_name, "with method", method)
@@ -446,7 +485,9 @@ for raw_log in raw_logs:
         result_dict = {"log": log_name, "method": method, "accuracy": acc, "f1": f1}
         results_summary.append(result_dict)
         df_log = pd.DataFrame([result_dict])
-        df_log.to_csv(os.path.join(RESULTS_DIR, f"{log_name}_{method}_results.csv"), index=False)
+        d = os.path.join(RESULTS_DIR, log_name, method)
+        os.makedirs(d, exist_ok=True)
+        df_log.to_csv(os.path.join(d, f"{log_name}_{method}_results.csv"), index=False)
 
         # Clear the model from memory before next iteration.
         tf.keras.backend.clear_session()
