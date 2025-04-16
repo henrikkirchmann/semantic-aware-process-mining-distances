@@ -254,7 +254,7 @@ def plot_results(df_average_values, log_name):
         sns.barplot(data=df_average_values, x="Distance Function", y=metric, palette="viridis")
 
         # Set plot labels and title
-        plt.title(f"{metric} for each Distance Function", fontsize=16)
+        plt.title(f"{metric} for {log_name}", fontsize=16)
         plt.xlabel('Distance Function', fontsize=14)
         plt.ylabel(metric, fontsize=14)
         plt.xticks(rotation=45, ha="right")  # Rotate x-axis labels for readability
