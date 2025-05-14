@@ -165,7 +165,7 @@ def visualize_embeddings_3d_multi(distance_functions, embedding_input, reduction
     other_color_map = get_other_color_map(alphabet)
 
     n = len(distance_functions)
-    fig = plt.figure(figsize=(6.5 * 2, 7.75))
+    fig = plt.figure(figsize=(6.5 * n, 7.5))
     axes = []
     for idx in range(n):
         ax = fig.add_subplot(1, n, idx + 1, projection='3d')
@@ -291,52 +291,12 @@ if __name__ == '__main__':
         "Activity-Activitiy Co Occurrence N-Gram PMI w_3",
     ]
 
-    # full list for 2D comparisons:
-    distance_functions_2d = [
-        "Unit Distance",
-        "Activity-Activitiy Co Occurrence N-Gram PMI w_3",
-    ]
-
-    # only your method for the 3D plot:
-    distance_functions_3d = [
-        "Activity-Activitiy Co Occurrence N-Gram PMI w_3"
-    ]
-
     log = xes_importer.apply(os.path.join(ROOT_DIR, "event_logs", "Sepsis.xes.gz"))
     log_control_flow_perspective = get_log_control_flow_perspective(log)
 
-    # 2D shows both unit‐distance (one‐hot) and your method:
-    visualize_embeddings_2d_multi(
-        distance_functions_2d,
-        log_control_flow_perspective,
-        reduction_method="pca",
-        title="2D Comparison of Distance Functions",
-        output_file="combined_2d.pdf"
-    )
+    visualize_embeddings_2d_multi(distance_functions, log_control_flow_perspective, reduction_method="pca",
+                                  title="2D Comparison of Distance Functions",
+                                  output_file="combined_2d.pdf")
 
-    # 3D shows only your method:
-    visualize_embeddings_3d_multi(
-        distance_functions_3d,
-        log_control_flow_perspective,
-        reduction_method="pca",
-        output_file="combined_3d.pdf",
-        elev=15,
-        azim=45
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    visualize_embeddings_3d_multi(distance_functions, log_control_flow_perspective, reduction_method="pca",
+                                  output_file="combined_3d.pdf", elev=15, azim=45)

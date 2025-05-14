@@ -81,7 +81,7 @@ def get_context_dict(ngrams_dict: Dict[Tuple[str, ...], int]) -> Dict[str, Dict[
 def get_cosine_distance_dict(embeddings):
     # Normalize embeddings
     """
-    normalized_embeddings = {
+    embeddings = {
         activity: embedding / np.linalg.norm(embedding)
         for activity, embedding in embeddings.items()
     }

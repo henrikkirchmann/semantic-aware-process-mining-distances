@@ -36,6 +36,27 @@ all_logs = ['BPIC12',
             'RTFM',
             'Sepsis']
 
+all_logs = [
+            'BPIC12_O',
+            'BPIC12_W',
+            'BPIC13_closed_problems',
+            'BPIC13_incidents',
+            'BPIC13_open_problems',
+            'BPIC15_1',
+            'BPIC15_2',
+            'BPIC15_3',
+            'BPIC15_4',
+            'BPIC15_5',
+            'BPIC20_DomesticDeclarations',
+            'BPIC20_InternationalDeclarations',
+            'BPIC20_PermitLog',
+            'BPIC20_PrepaidTravelCost',
+            'BPIC20_RequestForPayment',
+            'CCC19',
+            'Env Permit',
+            'Helpdesk',
+            'Sepsis']
+
 log_statistics = {}
 
 """

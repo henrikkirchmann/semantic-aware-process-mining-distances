@@ -77,8 +77,8 @@ def select_output_columns(activity: bool, timestamp: bool,
         output_columns[XesFields.ACTIVITY_COLUMN] = DataFrameFields.ACTIVITY_COLUMN
     if timestamp:
         output_columns[XesFields.TIMESTAMP_COLUMN] = DataFrameFields.TIMESTAMP_COLUMN
-    if resource:
-        output_columns[XesFields.RESOURCE_COLUMN] = DataFrameFields.RESOURCE_COLUMN
+    #if resource:
+    #    output_columns[XesFields.RESOURCE_COLUMN] = DataFrameFields.RESOURCE_COLUMN
 
     return output_columns
 

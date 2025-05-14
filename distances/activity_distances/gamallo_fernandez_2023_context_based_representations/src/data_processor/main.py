@@ -9,14 +9,13 @@ from distances.activity_distances.gamallo_fernandez_2023_context_based_represent
 import distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.data_processor.utils as utils
 import sys
 import os
+import pm4py
 
-
-def write_csvs(xes_file_name, output_file):
-    #xes_file_path = os.path.abspath(os.path.join("data/raw_datasets", xes_file_name))
+def write_csvs(xes_file_name, xes_log_path):
 
     sys.argv = [
         "script.py",  # Fake script name (needed for argparse)
-        "--dataset", output_file,  # Single dataset mode
+        "--dataset", xes_log_path,  # Single dataset mode
         "--holdout",  # Enables cross-validation
         "--activity",  # Extract ActivityID column
         "--timestamp",  # Extract Timestamp column
@@ -28,22 +27,15 @@ def write_csvs(xes_file_name, output_file):
 
     logger = DataProcessorLogger(args.print_mode)
 
-    # Get the list of datasets to be processed
-    dataset_list = utils.get_datasets_list(args.xes_path, args.batch, logger)
 
     # Select the specified columns
-    output_columns = utils.select_output_columns(args.activity, args.timestamp,
-                                                 args.resource)
+    output_columns = utils.select_output_columns(True, True,
+                                                False)
 
-    # Loop iterating over each dataset
-    for xes_dataset in dataset_list:
-        csv_dataset, config_csv_path, attr_dict  = utils.convert_xes_to_csv(xes_dataset, output_columns)
+    csv_dataset, config_csv_path, attr_dict  = utils.convert_xes_to_csv(xes_log_path, output_columns)
 
-        # Make the partitions
-        if args.crossvalidation:
-            utils.make_crossvalidation(csv_dataset)
-        else:
-            utils.make_holdout(csv_dataset)
+
+    utils.make_holdout(csv_dataset)
 
         # Calculate the statistics of the dataset
         #if args.stats:

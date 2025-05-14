@@ -294,9 +294,8 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
     early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
 
     trainer = pl.Trainer(
-        logger=False,
         accelerator='gpu',
-        devices=[0],
+        devices=[2],
         max_epochs=Config.EPOCHS,
         deterministic=True,
         callbacks=[TQDMProgressBar(refresh_rate=200), checkpoint_callback, early_stopping]

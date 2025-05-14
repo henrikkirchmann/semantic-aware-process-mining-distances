@@ -69,21 +69,23 @@ def get_act2vec_distance_matrix(log, alphabet, sg, window_size):
             manual_distances[(word1, word2)] = cosine_distance
 
     # 2. Compute distances using gensim's model.wv.distance for comparison
+    """ 
     gensim_distances = {}
     for word1 in alphabet:
         for word2 in alphabet:
             gensim_distances[(word1, word2)] = model.wv.distance(word1, word2)
-
+    """
     # 3. Compare the results
+    """
     differences = {}
     for key in manual_distances:
         diff = abs(manual_distances[key] - gensim_distances[key])
         differences[key] = diff
-
+    
     # 4. Check maximum difference
     max_diff = max(differences.values())
     print("Maximum difference between manual cosine distance and model.wv.distance:", max_diff)
-
+    """
 
     return distances, embedding_dict
 

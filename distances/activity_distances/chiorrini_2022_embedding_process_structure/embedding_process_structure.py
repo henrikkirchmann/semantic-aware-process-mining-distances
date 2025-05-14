@@ -34,15 +34,19 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
 
     process_id = os.getpid()
 
-    start_time = time.time()
+    if take_time == 1:
+        start_time = time.time()
 
     # Discover the workflow net
 
-    start = time.perf_counter()
+    #start = time.perf_counter()
 
     net_or, im, fm = pm4py.discover_petri_net_inductive(event_log, multi_processing=1)
-    end = time.perf_counter()
-    print(f"discovery time: {end - start:.6f} seconds")
+
+    if take_time == 2:
+        start_time = time.time()
+    #end = time.perf_counter()
+    #print(f"discovery time: {end - start:.6f} seconds")
 
     net_original_file = f"temp_petri_net_{process_id}.pnml"
     pm4py.write_pnml(net_or, im, fm, net_original_file)
@@ -53,7 +57,7 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
             outfile.write(make_visible(infile.read()))
 
     net, initial_marking, final_marking = pm4py.read_pnml(net_modified_file)
-    net_or, im, fm = pm4py.read_pnml(net_original_file)  # IMPORTANT: be sure to use the original net
+    #net_or, im, fm = pm4py.read_pnml(net_original_file)  # IMPORTANT: be sure to use the original net
 
     # Clean up the temporary file
     os.remove(net_original_file)
