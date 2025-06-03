@@ -6,20 +6,17 @@ This repository accompanies the ICPM 2025 submission by Kirchmann et al.:
 
 **Let’s Simply Count: Quantifying Distributional Similarity between Activities in Event Data**  
 
-We provide a comprehensive benchmarking framework to evaluate distributional similarity between activities in event data for process mining based on:
-- **Intrinsic similarity quality**
-- **Downstream performance** (Next Activity Prediction)
-- **Computational efficiency**
 
 ---
 
-## 📁 Scripts Overview
+## 📁 Benchmark Overview
+We provide a comprehensive benchmarking framework to evaluate distributional similarity between activities in event data for process mining based on:
 
-| Script                                                                                                                                    | Description |
-|-------------------------------------------------------------------------------------------------------------------------------------------|-------------|
-| [`intrinsic_evaluation.py`](./evaluation/evaluation_of_activity_distances/intrinsic_evaluation/evaluation_activity_distance_intrinsic.py) | Assesses the quality of distributional similarity between activities using synthetic ground truth logs. |
-| [`next_activity_prediction.py`](./evaluation/evaluation_of_activity_distances/next_activity_prediction)                                   | Benchmarks the embeddings in the task of next activity prediction. |
-| [`runtime_analysis.py`](./evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py)                               | Analyzes runtime performance across methods. |
+| Benchmark                                               | Description |
+|---------------------------------------------------------|-------------|
+| [Intrinsic Evaluation](#🧪-intrinsic-evaluation)        | Assesses the quality of distributional similarity between activities using synthetic ground truth logs. |
+| [Next Activity Prediction](#⏩-next-activity-prediction) | Benchmarks the embeddings in the task of next activity prediction. |
+| [Runtime Analysis](#⏳-runtime-analysis)                 | Analyzes runtime performance across methods. |
 
 
 ## ⚙️ Methods Compared in the Benchmark
