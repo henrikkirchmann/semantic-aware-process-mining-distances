@@ -80,6 +80,74 @@ These baselines are implemented or re-used from prior work.
 
 ## 🧪 Intrinsic Evaluation
 
+### 🔧 How to Run the Script
+
+To execute the benchmark evaluation, simply run the script [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/intrinsic_evaluation.py`](./evaluation/evaluation_of_activity_distances/intrinsic_evaluation/intrinsic_evaluation.py). 
+
+---
+
+### ⚙️ Configurable Settings
+
+You can customize the experiment by editing the `if __name__ == '__main__':` section of the script. Here's a breakdown of what you can change:
+
+#### Similarity / Embedding Methods
+These define which methods will be evaluated. They are appended to `activity_distance_functions`. You can **enable/disable methods** by commenting/uncommenting `append()` lines.
+
+Example:
+```python
+# activity_distance_functions.append("Unit Distance")  # Not used
+activity_distance_functions.append("Bose 2009 Substitution Scores")  # Used
+```
+
+You can also adjust the **window sizes** that are evaluated via:
+```python
+window_size_list = [3, 5, 9]
+```
+
+---
+
+####  Parameters for Ground Truth Log Creation
+These control the synthetic event log creation: For each original log, we consider all combinations of
+how many differnt activities are replaced $\{1, 2, ..., \min(|A_L|, r\_min)\}$ and with how many new activites are each original activty with $\{2, 3, ..., w\}$ 
+```python
+r_min         = 10     # How many differnt activities are replaced  
+w             = 5      # How many new activites are used to replace each original activty with
+sampling_size = 5      # How many samples to draw
+create_new    = True   # True = generate new logs; False = use pre-generated ones
+```
+
+> 💡 If `create_new = False`, make sure to unzip and place the folders of the pre-generated logs from  
+> [https://box.hu-berlin.de/d/7a97101239654eae8e6c/](https://box.hu-berlin.de/d/7a97101239654eae8e6c/) into:  
+> [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/`](evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/)
+
+---
+
+#### Event Logs to Evaluate
+
+By default, only the `'Sepsis'` log is evaluated:
+```python
+log_list.append('Sepsis')
+```
+
+To evaluate more logs, uncomment the entries in the multi-line string:
+```python
+"""
+log_list.append('BPIC12')
+log_list.append('BPIC13_incidents')
+...
+"""
+```
+---
+
+You can download the original event logs from the following location:
+
+[https://box.hu-berlin.de/f/aa5905ab235e444b8ffa/](https://box.hu-berlin.de/f/aa5905ab235e444b8ffa/)
+
+Unpack the folder and place all `.xes.gz` files into the directory: [`event_logs`](./event_logs) 
+
+### Results
+
+
 ## ⏩ Next Activity Prediction
 
 ## ⏳ Runtime Analysis

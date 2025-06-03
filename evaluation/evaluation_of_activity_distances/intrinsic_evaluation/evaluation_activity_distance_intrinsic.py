@@ -21,12 +21,7 @@ from evaluation.data_util.util_activity_distances_intrinsic import (
 def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size, load_activities = True):
     # Load event logs from files
     for log_name in log_list:
-        # If multiple XES files need to be imported for one log, load all files from the specified folder.
-        """ 
-        if log_name[:4] == "bpic" or log_name[:3] == "pdc":
-            sublog_list = get_sublog_list(log_name)
-            log_control_flow_perspective = [inner for outer in sublog_list for inner in outer]
-        """
+
         path_to_dict = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
                                     "newly_created_logs", log_name)
         if not os.path.exists(path_to_dict):
@@ -61,7 +56,8 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         # Ensure at least one core is used
         cores_to_use = max(1, cores_to_use)
 
-        mp = 1
+        # Set MP to 1 to use multiprocessing
+        mp = 0
         if mp == 1:
             with Pool(processes=cores_to_use) as pool:
                 results = pool.map(intrinsic_evaluation, combinations)
@@ -201,30 +197,20 @@ def intrinsic_evaluation(args):
 
 
 if __name__ == '__main__':
-    ##############################################################################
-    # intrinsic - activity_distance_functions we want to evaluate
+    # ==============================================================================
+    # Similarity Methods to Evaluate
+    # ==============================================================================
 
-    activity_distance_functions = list()
-    #activity_distance_functions.append("Bose 2009 Substitution Scores")
-    #activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    #activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
-    #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
+    activity_distance_functions = []
 
-
-
-    activity_distance_functions.append("Unit Distance")
-    activity_distance_functions.append("Bose 2009 Substitution Scores")
-    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
-    activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
-    #activity_distance_functions.append("Our act2vec")
-    #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based")
+    # --- Our New Methods ---
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PMI")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PPMI")
     activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PPMI")
+
     activity_distance_functions.append("Activity-Context Bag Of Words")
     activity_distance_functions.append("Activity-Context N-Grams")
     activity_distance_functions.append("Activity-Context Bag Of Words PMI")
@@ -232,130 +218,85 @@ if __name__ == '__main__':
     activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
     activity_distance_functions.append("Activity-Context N-Grams PPMI")
 
-    #activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    # --- Existing Methods ---
+    # activity_distance_functions.append("Unit Distance")
+    activity_distance_functions.append("Bose 2009 Substitution Scores")
+    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+    activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")  # set x in w_x to desired window size
 
+    # ==============================================================================
+    # Parameters
+    # ==============================================================================
 
-
-    ##############################################################################
-    r_min = 10
-    w = 5
+    # Parameters for ground truth log creation
+    r_min         = 10
+    w             = 5
     sampling_size = 5
+    create_new    = True  # If True, create new ground truth logs. If False, load existing.
+    # Pre-generated logs: https://box.hu-berlin.de/d/7a97101239654eae8e6c/
+    # Unzip and place in 'evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs'
 
-    window_size_list = [3,5,9]
-
+    # Parameters for Similarity / Embedding Methods
+    window_size_list = [3, 5, 9]
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
-    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")
-    print(sampling_size)
-    ##############################################################################
-    # intrinsic - event logs we want to evaluate
-    log_list = list()
-    log_list = ['BPIC12',
-                'BPIC12_A',
-                'BPIC12_Complete',
-                'BPIC12_O',
-                'BPIC12_W',
-                'BPIC12_W_Complete',
-                'BPIC13_closed_problems',
-                'BPIC13_incidents',
-                'BPIC13_open_problems',
-                'BPIC15_1',
-                'BPIC15_2',
-                'BPIC15_3',
-                'BPIC15_4',
-                'BPIC15_5',
-                'BPIC17',
-                'BPIC18',
-                'BPIC19',
-                'BPIC20_DomesticDeclarations',
-                'BPIC20_InternationalDeclarations',
-                'BPIC20_PermitLog',
-                'BPIC20_PrepaidTravelCost',
-                'BPIC20_RequestForPayment',
-                'CCC19',
-                'Env Permit',
-                'Helpdesk',
-                'Hospital Billing',
-                'RTFM',
-                'Sepsis'
-                ]
-    #for gamallo results
-    log_list = [
-                'BPIC12_O',
-                'BPIC13_closed_problems',
-                'BPIC13_incidents',
-                'BPIC13_open_problems',
-                'BPIC15_1',
-                'BPIC15_2',
-                'BPIC15_3',
-                'BPIC15_4',
-                'BPIC15_5',
-                'BPIC20_DomesticDeclarations',
-                'BPIC20_InternationalDeclarations',
-                'BPIC20_PermitLog',
-                'BPIC20_PrepaidTravelCost',
-                'BPIC20_RequestForPayment',
-                'CCC19',
-                'Env Permit',
-                'Helpdesk',
-                'Sepsis'
-                ]
 
-    #log_list.append("Sepsis")
-    #log_list.append("repairExample")
-    #log_list.append("bpic_2015")
-    #log_list.append("Sepsis")
-    #log_list.append("Road Traffic Fine Management Process")
-    # log_list.append("bpic_2015")
-    # log_list.append("PDC 2016")
-    #log_list.append("BPI Challenge 2015 1")
-    # log_list.append("pdc_2022")
-    # log_list.append("PDC 2017")
-    #log_list.append("PDC 2019")
-    #log_list.append("BPI Challenge 2017")
-    #log_list.append("BPIC15_1 (1)")\
-    """ 
-    all_logs = ['BPIC12',
-                'BPIC12_A',
-                'BPIC12_Complete',
-                'BPIC12_O',
-                'BPIC12_W',
-                'BPIC12_W_Complete',
-                'BPIC13_closed_problems',
-                'BPIC13_incidents',
-                'BPIC13_open_problems',
-                'BPIC15_1',
-                'BPIC15_2',
-                'BPIC15_3',
-                'BPIC15_4',
-                'BPIC15_5',
-                'BPIC17',
-                'BPIC18',
-                'BPIC19',
-                'BPIC20_DomesticDeclarations',
-                'BPIC20_InternationalDeclarations',
-                'BPIC20_PermitLog',
-                'BPIC20_PrepaidTravelCost',
-                'BPIC20_RequestForPayment',
-                'CCC19',
-                'Env Permit',
-                'Helpdesk',
-                'Hospital Billing',
-                'RTFM',
-                'Sepsis']
+    # ==============================================================================
+    # Intrinsic Evaluation - Event Logs to Evaluate
+    # ==============================================================================
+
+    log_list = []
+    log_list.append('Sepsis')
+
+    # Optional: Add more logs below as needed
     """
-    # log_list.append("BPI Challenge 2017")
-    #log_list.append("WABO")
+    log_list.append('BPIC12')
+    log_list.append('BPIC12_A')
+    log_list.append('BPIC12_Complete')
+    log_list.append('BPIC12_O')
+    log_list.append('BPIC12_W')
+    log_list.append('BPIC12_W_Complete')
+    log_list.append('BPIC13_closed_problems')
+    log_list.append('BPIC13_incidents')
+    log_list.append('BPIC13_open_problems')
+    log_list.append('BPIC15_1')
+    log_list.append('BPIC15_2')
+    log_list.append('BPIC15_3')
+    log_list.append('BPIC15_4')
+    log_list.append('BPIC15_5')
+    log_list.append('BPIC17')
+    log_list.append('BPIC18')
+    log_list.append('BPIC19')
+    log_list.append('BPIC20_DomesticDeclarations')
+    log_list.append('BPIC20_InternationalDeclarations')
+    log_list.append('BPIC20_PermitLog')
+    log_list.append('BPIC20_PrepaidTravelCost')
+    log_list.append('BPIC20_RequestForPayment')
+    log_list.append('CCC19')
+    log_list.append('Env Permit')
+    log_list.append('Helpdesk')
+    log_list.append('Hospital Billing')
+    log_list.append('RTFM')
+    """
 
-    print(log_list)
+    # ==============================================================================
+    # Overview of Configuration
+    # ==============================================================================
 
-    # log_list.append("2019_1")
-    ##############################################################################
+    print("Selected Similarity Methods:")
+    for method in activity_distance_functions:
+        print(f" - {method}")
 
-    ##############################################################################
-    # intrinsic - event logs we want to evaluate
-    evluation_measure_list = list()
-    # evluation_measure_list.append("precision@w-1")
-    # evluation_measure_list.append("precision@1")
-    ##############################################################################
+    print("\nEvaluation Parameters:")
+    print(f" - r_min         : {r_min}")
+    print(f" - w             : {w}")
+    print(f" - sampling_size : {sampling_size}")
+    print(f" - create_new    : {create_new}")
+    print(f" - logs used     : {log_list}")
+
+    # ==============================================================================
+    # Start Benchmark
+    # ==============================================================================
 
     evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size)
