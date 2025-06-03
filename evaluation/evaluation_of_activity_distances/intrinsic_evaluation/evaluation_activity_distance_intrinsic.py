@@ -176,8 +176,8 @@ def intrinsic_evaluation(args):
                 computation_times['Triplet'] = time.time() - start_time
 
                 # Print the computation times
-                for key, value in computation_times.items():
-                    print(f"{key}: {value:.4f} seconds")
+                #for key, value in computation_times.items():
+                #    print(f"{key}: {value:.4f} seconds")
 
             diameter = sum(diameter_list) / len(diameter_list)
             precision_at_w_minus_1 = sum(precision_at_w_minus_1_list) / len(precision_at_w_minus_1_list)
@@ -186,10 +186,9 @@ def intrinsic_evaluation(args):
             results_list.append((different_activities_to_replace_count, activities_to_replace_with_count, diameter,
                                  precision_at_w_minus_1, precision_at_1, triplet))
             #save results
-            if load_logs:
-                results = (different_activities_to_replace_count, activities_to_replace_with_count, diameter,
-                                 precision_at_w_minus_1, precision_at_1, triplet)
-                save_results(results, log_name, activity_distance_function[0], different_activities_to_replace_count, activities_to_replace_with_count, sampling_size)
+            results = (different_activities_to_replace_count, activities_to_replace_with_count, diameter,
+                             precision_at_w_minus_1, precision_at_1, triplet)
+            save_results(results, log_name, activity_distance_function[0], different_activities_to_replace_count, activities_to_replace_with_count, sampling_size)
 
     print("end ---- r:" + str(different_activities_to_replace_count) + " w: " + str(
         activities_to_replace_with_count) + " sampling size: " + str(sampling_size))
@@ -234,7 +233,7 @@ if __name__ == '__main__':
     r_min         = 10
     w             = 5
     sampling_size = 5
-    create_new    = True  # If True, create new ground truth logs. If False, load existing.
+    create_new    = False  # If True, create new ground truth logs. If False, load existing.
     # Pre-generated logs: https://box.hu-berlin.de/d/7a97101239654eae8e6c/
     # Unzip and place in 'evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs'
 

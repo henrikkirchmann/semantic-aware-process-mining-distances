@@ -54,6 +54,7 @@ def get_activities_to_replace(alphabet: List[str], different_activities_to_repla
     alphabet_len_minus_one = alphabet_len -1
     sampled_combinations = set()
     comb_number = math.comb(alphabet_len, different_activities_to_replace_count)
+    #sampling to not run out of memory
     while len(sampled_combinations) < sample_size and len(sampled_combinations) < comb_number:
         activity_index_set = set()
         while len(activity_index_set) < different_activities_to_replace_count:
@@ -337,6 +338,9 @@ def get_avg_triplet_value(replaced_activities, similarity_scores_of_activities, 
     return triplet_value_for_log
 
 
+
+
+
 def triplet_is_in_class(activity_1_in_class, activity_2_in_class, activity_3_out_of_class, activity_distance_matrix):
     if activity_distance_matrix[activity_1_in_class][activity_2_in_class] < activity_distance_matrix[activity_1_in_class][activity_3_out_of_class]:
         return 1
@@ -471,9 +475,24 @@ def add_window_size_evaluation(activity_distance_functions, window_size_list):
     new_activity_distance_function_list = list()
     for activity_distance_function in activity_distance_functions:
         if activity_distance_function.startswith(
-                ("Bose", "De Koninck", "Activity-Activitiy", "Activity-Context", "Gamallo Fernandez", "Our")):
+                ("Bose", "De Koninck", "Activity-Activitiy", "Activity-Context", "Our")):
             for window_size in window_size_list:
                 new_activity_distance_function_list.append(activity_distance_function + " w_" + str(window_size))
         else:
             new_activity_distance_function_list.append(activity_distance_function)
     return new_activity_distance_function_list
+
+def get_triplet_for_example():
+    distance_matrix = {
+    ("a:1", "a:1"): 0, ("a:1", "a:2"): 5, ("a:1", "a:3"): 5, ("a:1", "b:1"): 2, ("a:1", "b:2"): 2, ("a:1", "c"): 8, ("a:1", "d"): 7, ("a:1", "e"): 7,
+    ("a:2", "a:1"): 5, ("a:2", "a:2"): 0, ("a:2", "a:3"): 1, ("a:2", "b:1"): 3, ("a:2", "b:2"): 4, ("a:2", "c"): 3, ("a:2", "d"): 2, ("a:2", "e"): 3,
+    ("a:3", "a:1"): 5, ("a:3", "a:2"): 1, ("a:3", "a:3"): 0, ("a:3", "b:1"): 4, ("a:3", "b:2"): 3, ("a:3", "c"): 3, ("a:3", "d"): 3, ("a:3", "e"): 2,
+    ("b:1", "a:1"): 2, ("b:1", "a:2"): 3, ("b:1", "a:3"): 4, ("b:1", "b:1"): 0, ("b:1", "b:2"): 1, ("b:1", "c"): 6, ("b:1", "d"): 5, ("b:1", "e"): 6,
+    ("b:2", "a:1"): 2, ("b:2", "a:2"): 4, ("b:2", "a:3"): 3, ("b:2", "b:1"): 1, ("b:2", "b:2"): 0, ("b:2", "c"): 6, ("b:2", "d"): 6, ("b:2", "e"): 5,
+    ("c",   "a:1"): 8, ("c",   "a:2"): 3, ("c",   "a:3"): 3, ("c",   "b:1"): 6, ("c",   "b:2"): 6, ("c",   "c"):   0, ("c",   "d"): 1, ("c",   "e"): 1,
+    ("d",   "a:1"): 7, ("d",   "a:2"): 2, ("d",   "a:3"): 3, ("d",   "b:1"): 5, ("d",   "b:2"): 6, ("d",   "c"):   1, ("d",   "d"):   0, ("d",   "e"): 2,
+    ("e",   "a:1"): 7, ("e",   "a:2"): 3, ("e",   "a:3"): 2, ("e",   "b:1"): 6, ("e",   "b:2"): 5, ("e",   "c"):   1, ("e",   "d"): 2, ("e",   "e"): 0,
+}
+
+    avg_triplet_value = get_avg_triplet_value(("a", "b"), distance_matrix, 3, False, [])
+    print(avg_triplet_value)
