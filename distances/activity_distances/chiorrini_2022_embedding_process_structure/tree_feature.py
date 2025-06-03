@@ -1,3 +1,10 @@
+# =============================================================================
+# Based on:
+# Chiorrini, Andrea, et al. "Embedding Process Structure in Activities for
+# Process Mapping and Comparison." European Conference on Advances in
+# Databases and Information Systems. Cham: Springer International Publishing, 2022.
+# https://doi.org/10.1007/978-3-031-15743-1_12
+# =============================================================================
 import re
 from pm4py.objects.process_tree.obj import Operator
 

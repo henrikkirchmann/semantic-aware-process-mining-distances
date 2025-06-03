@@ -1,8 +1,16 @@
-"""
-EMBEDDING GENERATOR:
-Executes the embedding model training and stores the embeddings list.
-Four types of embeddings: ACOV, MOVC, GloVe, CAPE.
-"""
+# =============================================================================
+# Autoencoder:
+# Neural embeddings via context reconstruction using an autoencoder architecture
+#
+# Based on:
+# Gamallo-Fernandez, P., Vidal, J.C., and Lama, M.
+# "Learning Context-Based Representations of Events in Complex Processes."
+# 2023 IEEE International Conference on Web Services (ICWS), Chicago, IL, USA, 2023,
+# pp. 214–223. https://doi.org/10.1109/ICWS60048.2023.00041
+#
+# Source code: https://gitlab.citius.gal/pedro.gamallo/PM_Embeddings/-/blob/master/src/embeddings_gener
+# =============================================================================
+
 import math
 from pathlib import Path
 import pandas as pd
@@ -42,11 +50,6 @@ import math
 from itertools import product
 from scipy.spatial.distance import cosine
 from pathlib import Path
-
-# Assuming these functions are already imported:
-# transform_control_flow_lists_to_xes, write_csvs, read_input_args,
-# get_embeddings, delete_temporary_files
-# and classes: EmbGeneratorLogger, EventlogDataset, DataFrameFields, Config
 
 def get_context_based_distance_matrix(control_flow_lists, window_size, take_time = None):
     # Convert the control flow lists to an XES file and then to CSV.

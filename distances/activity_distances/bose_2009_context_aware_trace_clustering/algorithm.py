@@ -1,3 +1,12 @@
+# =============================================================================
+# Based on:
+# Bose, R.P. Jagadeesh Chandra, and Wil M.P. van der Aalst.
+# "Context Aware Trace Clustering: Towards Improving Process Mining Results."
+# Proceedings of the 2009 SIAM International Conference on Data Mining.
+# Society for Industrial and Applied Mathematics, 2009.
+# https://doi.org/10.1137/1.9781611972795.35
+# =============================================================================
+
 from collections import defaultdict
 from typing import List, Tuple, Dict
 
@@ -28,15 +37,3 @@ def get_substitution_and_insertion_scores(log, alphabet, ngram_size):
         for row in keys
     }
     return substitution_scores, embedding_dict #, insertion_scores
-
-#print(substitution_scores)
-#if 1:
-#    print(str(substitution_scores.get(('Repair (Simple)-start', 'Repair (Complex)-start'))) + ' vs 5')
-#    print(str(substitution_scores.get(('Repair (Simple)-start', 'Repair (Simple)-start'))) + ' vs 9')
-#    print(str(substitution_scores.get(('Test Repair-complete', 'Archive Repair-complete'))) + ' vs -11')
-#    print(str(substitution_scores.get(('Inform User-complete', 'Archive Repair-complete'))) + ' vs 0')
-#if 0:
-#    print(str(substitution_scores.get(('Repair (Simple)', 'Repair (Complex)'))) + ' vs 5')
-#    print(str(substitution_scores.get(('Repair (Simple)', 'Repair (Simple)'))) + ' vs 9')
-#    print(str(substitution_scores.get(('Test Repair', 'Archive Repair'))) + ' vs -11')
-#    print(str(substitution_scores.get(('Inform User', 'Archive Repair'))) + ' vs 0')

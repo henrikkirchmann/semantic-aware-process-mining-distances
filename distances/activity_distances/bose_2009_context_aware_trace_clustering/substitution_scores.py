@@ -1,3 +1,12 @@
+# =============================================================================
+# Based on:
+# Bose, R.P. Jagadeesh Chandra, and Wil M.P. van der Aalst.
+# "Context Aware Trace Clustering: Towards Improving Process Mining Results."
+# Proceedings of the 2009 SIAM International Conference on Data Mining.
+# Society for Industrial and Applied Mathematics, 2009.
+# https://doi.org/10.1137/1.9781611972795.35
+# =============================================================================
+
 from collections import defaultdict
 from typing import List, Tuple, Dict
 from math import log

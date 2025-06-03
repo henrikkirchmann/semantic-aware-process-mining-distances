@@ -1,3 +1,11 @@
+# =============================================================================
+# Based on:
+# Chiorrini, Andrea, et al. "Embedding Process Structure in Activities for
+# Process Mapping and Comparison." European Conference on Advances in
+# Databases and Information Systems. Cham: Springer International Publishing, 2022.
+# https://doi.org/10.1007/978-3-031-15743-1_12
+# =============================================================================
+
 import os
 import sys
 import time
@@ -18,8 +26,16 @@ from distances.activity_distances.data_util.algorithm import get_cosine_distance
 sys.setrecursionlimit(1000000)
 
 def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
-    event_log = EventLog()
+    # take_time settings:
+    # - take_time = None : No time measurement
+    # - take_time = 1    : Measure time for process model discovery,
+    #                      embedding computation, and similarity computation
+    # - take_time = 2    : Measure time for embedding computation and
+    #                      similarity computation only
+    # Note: Time measurements were taken with multi_processing=1 in pm4py.discover_petri_net_inductive
+
     # Transform the list of traces into an EventLog object
+    event_log = EventLog()
     for trace_id, trace in enumerate(log):
         pm4py_trace = Trace()
         for event_id, activity in enumerate(trace):
@@ -32,21 +48,14 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
             pm4py_trace.append(event)  # Add event to the trace
         event_log.append(pm4py_trace)  # Add trace to the event log
 
+    # for temporary file names with no multiprocessing conflicts
     process_id = os.getpid()
 
     if take_time == 1:
         start_time = time.time()
 
     # Discover the workflow net
-
-    #start = time.perf_counter()
-
-    net_or, im, fm = pm4py.discover_petri_net_inductive(event_log, multi_processing=1)
-
-    if take_time == 2:
-        start_time = time.time()
-    #end = time.perf_counter()
-    #print(f"discovery time: {end - start:.6f} seconds")
+    net_or, im, fm = pm4py.discover_petri_net_inductive(event_log, multi_processing=0)
 
     net_original_file = f"temp_petri_net_{process_id}.pnml"
     pm4py.write_pnml(net_or, im, fm, net_original_file)
@@ -62,6 +71,9 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
     # Clean up the temporary file
     os.remove(net_original_file)
     os.remove(net_modified_file)
+
+    if take_time == 2:
+        start_time = time.time()
 
     tree = wf_net_converter.apply(net, initial_marking, final_marking)
     tree_2 = generic.fold(tree)
@@ -83,24 +95,9 @@ def get_embedding_process_structure_distance_matrix(log, alphabet, take_time):
     id_sloop = 2
     id_lloop = 3
 
-    #start = time.perf_counter()
-    #path_l = p_length(out, net_or, im)
-    #end = time.perf_counter()
-    #print(f"path_l computation time: {end - start:.6f} seconds")
-
-    #start = time.perf_counter()
     path_l = new_pathlength_in_place(tree_2)
-    #end = time.perf_counter()
-    #print(f"path_in_place computation time: {end - start:.6f} seconds")
-
-    #data = [[key, path_l[key], path_in_place[key], path_in_place[key] - path_l[key]] for key in path_l]
-    #print(tabulate(data, headers=["Key", "Path_L", "Path_In_Place", "Difference"], tablefmt="grid"))
-
-
-    # Measure optionality computation time
     opt = optionality(out, id_opt)
 
-    # Measure new parallelism computations
     new_parallelism_pathlength_dict = new_parallelism_pathlength(tree_2)
     newparallelism_dict = newparallelism(tree_2)
 

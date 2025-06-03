@@ -1,3 +1,12 @@
+# =============================================================================
+# Based on:
+# Bose, R.P. Jagadeesh Chandra, and Wil M.P. van der Aalst.
+# "Context Aware Trace Clustering: Towards Improving Process Mining Results."
+# Proceedings of the 2009 SIAM International Conference on Data Mining.
+# Society for Industrial and Applied Mathematics, 2009.
+# https://doi.org/10.1137/1.9781611972795.35
+# =============================================================================
+
 from typing import List, Tuple, Dict
 from collections import defaultdict
 from math import log
@@ -45,9 +54,6 @@ def get_insertion_scores_right_given_left(norm_right_given_left_count_dict, prob
                 value = norm_right_given_left_count_dict[activity][left_context]/probabilities_of_symbol_occurrence_dict[activity]*probabilities_of_symbol_occurrence_dict[left_context[-1]]
                 if value != 0:
                     insertion_scores_dict[(activity, left_context)] = int(log(value))
-
-
-
 
 def get_insertion_scores(alphabet, context_dict, ngram_size, probabilities_of_symbol_occurrence_dict):
     #Line 4
