@@ -8,7 +8,13 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 # By default run on CPU. Set AERAC_USE_GPU=true to enable GPU training.
 USE_GPU = os.environ.get("AERAC_USE_GPU", "false").lower() == "true"
 import numpy as np
-import torch
+try:
+    import torch
+except Exception as e:  # pragma: no cover - informative failure for missing cuDNN
+    raise ImportError(
+        "PyTorch failed to load. If you installed the GPU build without cuDNN,\n"
+        "either install cuDNN or reinstall the CPU-only build as described in the README."
+    ) from e
 import torch.nn as nn
 import torchmetrics
 import lightning as pl
