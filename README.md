@@ -86,6 +86,7 @@ These baselines are implemented or re-used from prior work.
   ```
 
   Without these variables, the scripts fall back to CPU execution.
+
 If you installed the GPU build of PyTorch but lack cuDNN, importing `torch` may fail with an error such as `libcudnn.so.9` not found. Either install cuDNN or reinstall the CPU-only wheel:
 
 ```bash
