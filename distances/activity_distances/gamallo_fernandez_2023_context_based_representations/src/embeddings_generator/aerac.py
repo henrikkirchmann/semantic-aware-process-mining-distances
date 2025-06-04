@@ -4,6 +4,9 @@ import shutil
 import pandas as pd
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+# By default run on CPU. Set AERAC_USE_GPU=true to enable GPU training.
+USE_GPU = os.environ.get("AERAC_USE_GPU", "false").lower() == "true"
 import numpy as np
 import torch
 import torch.nn as nn
@@ -294,8 +297,8 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
     early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
 
     trainer = pl.Trainer(
-        accelerator='gpu',
-        devices=[2],
+        accelerator='gpu' if USE_GPU else 'cpu',
+        devices=1,
         max_epochs=Config.EPOCHS,
         deterministic=True,
         callbacks=[TQDMProgressBar(refresh_rate=200), checkpoint_callback, early_stopping]
@@ -368,7 +371,7 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
     early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
 
     trainer = pl.Trainer(
-        accelerator='gpu',
+        accelerator='gpu' if USE_GPU else 'cpu',
         devices=1,
         # Use a single GPU for deterministic training. If you wish to use multiple GPUs, consider strategy='dp'
         max_epochs=Config.EPOCHS,
@@ -698,9 +701,9 @@ def run_AErac_model(eventlog: EventlogDataset, emb_size: int, win_size: int,
     early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=15)
 
     trainer = pl.Trainer(
-        accelerator='gpu',
-        strategy="dp",
-        devices=1,  # Use a single GPU for deterministic training. If you wish to use multiple GPUs, consider strategy='dp'
+        accelerator='gpu' if USE_GPU else 'cpu',
+        strategy="dp" if USE_GPU else None,
+        devices=1,
         max_epochs=Config.EPOCHS,
         deterministic=True,
         callbacks=[TQDMProgressBar(refresh_rate=20), checkpoint_callback, early_stopping]

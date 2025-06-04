@@ -73,6 +73,19 @@ These baselines are implemented or re-used from prior work.
   After completing all five folds, the embedding that performs best on the test fold is selected.\
   To reduce the considerable runtime of the full 5-fold procedure, we employed a simpler 80\%/20\% train/validation split. The authors do not specify an exact embedding dimension; instead, they match it to the requirements of the prediction model. Following their observation that larger embeddings improve performance, we fix the embedding dimension to 128. \
   Due to the long runtime, we tested the autoencoder only at a window size of 3, following the original study’s finding that this setting yields the best predictive performance.
+- **cuDNN Setup (Autoencoder):**\
+  The autoencoder scripts run on **CPU by default**. To enable GPU training, set
+  the environment variable `AERAC_USE_GPU=true` and ensure cuDNN is installed.
+  We used cuDNN 8.9.6 with CUDA 12. Define `LD_LIBRARY_PATH` and
+  `LD_PRELOAD` so they point to your cuDNN installation, e.g.:
+
+  ```bash
+  export LD_LIBRARY_PATH=/path/to/cudnn/lib:$LD_LIBRARY_PATH
+  export LD_PRELOAD=/path/to/cudnn/lib/libcudnn.so.8
+  export AERAC_USE_GPU=true
+  ```
+
+  Without these variables, the scripts fall back to CPU execution.
 ---
 
 ## :test_tube: Intrinsic Evaluation
