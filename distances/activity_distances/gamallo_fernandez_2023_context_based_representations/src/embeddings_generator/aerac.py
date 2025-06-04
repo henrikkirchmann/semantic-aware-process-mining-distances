@@ -5,15 +5,20 @@ import pandas as pd
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-# By default run on CPU. Set AERAC_USE_GPU=true to enable GPU training.
-USE_GPU = os.environ.get("AERAC_USE_GPU", "false").lower() == "true"
 import numpy as np
+# By default run on GPU. Set AERAC_USE_GPU=false to disable GPU training.
+USE_GPU = os.environ.get("AERAC_USE_GPU", "true").lower() == "true"
+import numpy as np
+# Disable NCCL to avoid libnccl.so.2 import error
+os.environ["TORCH_DISABLE_NCCL"] = "1"
+
 try:
     import torch
-except Exception as e:  # pragma: no cover - informative failure for missing cuDNN
+except Exception as e:
     raise ImportError(
-        "PyTorch failed to load. If you installed the GPU build without cuDNN,\n"
-        "either install cuDNN or reinstall the CPU-only build as described in the README."
+        "PyTorch failed to load. Ensure CUDA and cuDNN are installed and that\n"
+        "your PyTorch build matches the CUDA version. Set AERAC_USE_GPU=false to\n"
+        "run without GPU support."
     ) from e
 import torch.nn as nn
 import torchmetrics

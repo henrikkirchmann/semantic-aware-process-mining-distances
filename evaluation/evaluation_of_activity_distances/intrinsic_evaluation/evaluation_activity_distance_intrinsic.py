@@ -230,9 +230,9 @@ if __name__ == '__main__':
     # ==============================================================================
 
     # Parameters for ground truth log creation
-    r_min         = 10
-    w             = 5
-    sampling_size = 5
+    r_min         = 1
+    w             = 2
+    sampling_size = 1
     create_new    = False  # If True, create new ground truth logs. If False, load existing.
     # Pre-generated logs: https://box.hu-berlin.de/d/7a97101239654eae8e6c/
     # Unzip and place in 'evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs'
