@@ -104,18 +104,20 @@ window_size_list = [3, 5, 9]
 ---
 
 ####  Parameters for Ground Truth Log Creation
-These control the synthetic event log creation: For each original log, we consider all combinations of
-how many differnt activities are replaced $\{1, 2, ..., \min(|A_L|, r\_min)\}$ and with how many new activites are each original activty with $\{2, 3, ..., w\}$ 
+These control the synthetic event log creation: For each original log, we create sampling_size many logs for each combination of
+how many differnt activities are replaced \{1, 2, ..., \min(|A_L|, r\_min)\} and with how many new activites are each original activty are replaced with \{2, 3, ..., w\}. As described in the paper. 
 ```python
 r_min         = 10     # How many differnt activities are replaced  
 w             = 5      # How many new activites are used to replace each original activty with
-sampling_size = 5      # How many samples to draw
-create_new    = True   # True = generate new logs; False = use pre-generated ones
+sampling_size = 5      # How many ground truth logs to generate
+create_new    = False   # True = generate new logs; False = use pre-generated ones
 ```
 
-> 💡 If `create_new = False`, make sure to unzip and place the folders of the pre-generated logs from  
+> 💡 When you want to use the ground truth log we used set `create_new = False`, make sure to unzip and place the folders of the pre-generated logs from  
 > [https://box.hu-berlin.de/d/7a97101239654eae8e6c/](https://box.hu-berlin.de/d/7a97101239654eae8e6c/) into:  
-> [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/`](evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/)
+> [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/`](evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/)\
+> **Note:** The unzipped folder requires **24.7 GB** of storage space.
+
 
 ---
 
@@ -139,8 +141,6 @@ log_list.append('BPIC13_incidents')
 You can download the original event logs from the following location:
 
 [https://box.hu-berlin.de/f/aa5905ab235e444b8ffa/](https://box.hu-berlin.de/f/aa5905ab235e444b8ffa/)
-
-**Note:** The unzipped folder requires **24.7 GB** of storage space.
 
 Unpack the folder and place all `.xes.gz` files into the directory: [`event_logs`](./event_logs) 
 
@@ -233,7 +233,134 @@ Before running the analysis script:
 
 ## :fast_forward: Next Activity Prediction
 
+Following the approach of **Gamallo-Fernandez et al. (2023)** — *"Learning Context-Based Representations of Events in Complex Processes"* ([DOI](https://doi.org/10.1109/ICWS60048.2023.00041)) — we initialize the embedding layer of a next-activity prediction model with **pre-trained activity embeddings**, and **freeze its weights during training** to evaluate their effectiveness.
+
+---
+
+### 📁 Datasets
+
+- Raw event logs are located in:  
+  `evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`
+
+- Logs are split into:
+  - 64% training
+  - 16% validation
+  - 20% test
+
+- The splits are saved under:  
+  `evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/`
+
+All logs found in the `raw_datasets` folder will be used automatically for training and evaluation.
+
+---
+
+### 🧠 Evermann Model
+
+> Evermann, J., Rehse, J.-R., & Fettke, P.  
+> *"Predicting process behaviour using deep learning."*  
+> Decision Support Systems 100 (2017): 129–140.  
+> [DOI](https://doi.org/10.48550/arXiv.1612.04600)
+
+Our implementation follows the codebase provided in:  
+[github.com/ERamaM/PMDLComparator](https://github.com/ERamaM/PMDLComparator/blob/master/evermann/train.py)  
+as part of the paper:  
+Rama-Maneiro et al. (2021), *"Deep learning for predictive business process monitoring: Review and benchmark."*  
+IEEE Transactions on Services Computing, 16(1), 739–756.
+
+---
+
+#### ▶️ Running the Benchmark
+
+Execute the following script to start training and evaluation:
+
+evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py
+
+
+---
+
+#### 📊 Evermann Model Results
+
+For each `<log_name>` and embedding `<method>`, results are saved to:
+
+```
+results_everman/<log_name>/<method>/
+└── <log_name>.txt       # Summary of evaluation metrics
+```
+
+
+#### <log_name>.txt:
+- Accuracy
+- Matthews Correlation Coefficient (MCC)
+- Brier Score
+- Weighted Precision
+- Weighted Recall
+- Weighted F1 Score
+
+---
+
+#### 📈 Analyzing Evermann Results
+
+To aggregate and analyze model performance across logs, run:
+ additional_scripts/calculate_next_activity_results_everman.py
+
+
+#### 🔧 Before Running:
+
+Make sure to configure the `all_logs` list in the script to specify which logs you want to include in the analysis.
+
+### Tax Model
+
+> Tax, Niek, et al. "Predictive business process monitoring with LSTM neural networks."  
+> *Advanced Information Systems Engineering: 29th International Conference, CAiSE 2017.*  
+> [DOI: 10.1007/978-3-319-59536-8_30](https://doi.org/10.1007/978-3-319-59536-8_30)
+
+Our implementation follows the codebase provided in:  
+[github.com/ERamaM/PMDLComparator](https://github.com/ERamaM/PMDLComparator/blob/master/tax/code/train.py)
+
+---
+
+#### ▶️ Running the Benchmark
+
+To train and evaluate the Tax model on your logs, run:
+
+```
+evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_tax.py
+```
+
+This will process all logs in `raw_datasets/`, using predefined splits and save results accordingly.
+
+---
+
+#### 📁 Results
+
+All output files will be stored in:
+
+```
+evaluation/evaluation_of_activity_distances/next_activity_prediction/results_tax/
+```
+
+Each method-log combination will result in:
+
+- Performance metrics
+- Raw prediction files
+
+---
+
+#### 📊 Analyze Results
+
+To aggregate and visualize the performance across different logs:
+
+```
+additional_scripts/calculate_next_activity_results_tax.py
+```
+
+Before running the analysis script, ensure the `all_logs` list inside it reflects the target logs you'd like to analyze.
+
+---
+
 ## :hourglass_flowing_sand: Runtime Analysis
+
+Run evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py
 
 ## 🗃️ Datasets
 
