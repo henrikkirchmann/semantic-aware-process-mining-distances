@@ -237,7 +237,7 @@ This file contains a `DataFrame` with one row per method and the following colum
 ### 🔎 Analyzing Results in Intrinsic Evaluation
 
 To analyze and visualize the intrinsic evaluation results across all logs, run:
-> [`additional_scripts/average_intrinisc_results_with_latex_tabel.py`](additional_scripts/average_intrinisc_results_with_latex_tabel.py)
+> [`additional_scripts/calculate_average_intrinsic_results.py`](additional_scripts/calculate_average_intrinsic_results.py)
 
 Before running the analysis script:
 
@@ -292,7 +292,7 @@ IEEE Transactions on Services Computing, 16(1), 739–756.
 
 Execute the following script to start training and evaluation:
 
-evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py
+> [`evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py)
 
 
 ---
