@@ -73,6 +73,27 @@ These baselines are implemented or re-used from prior work.
   After completing all five folds, the embedding that performs best on the test fold is selected.\
   To reduce the considerable runtime of the full 5-fold procedure, we employed a simpler 80\%/20\% train/validation split. The authors do not specify an exact embedding dimension; instead, they match it to the requirements of the prediction model. Following their observation that larger embeddings improve performance, we fix the embedding dimension to 128. \
   Due to the long runtime, we tested the autoencoder only at a window size of 3, following the original study’s finding that this setting yields the best predictive performance.
+- **cuDNN Setup (Autoencoder):**\
+  The autoencoder scripts run on **CPU by default**. Only set
+  `AERAC_USE_GPU=true` if you have CUDA and cuDNN installed.
+  We used cuDNN 8.9.6 with CUDA 12. Define `LD_LIBRARY_PATH` and
+  `LD_PRELOAD` so they point to your cuDNN installation, e.g.:
+
+  ```bash
+  export LD_LIBRARY_PATH=/path/to/cudnn/lib:$LD_LIBRARY_PATH
+  export LD_PRELOAD=/path/to/cudnn/lib/libcudnn.so.8
+  export AERAC_USE_GPU=true
+  ```
+
+  Without these variables, the scripts fall back to CPU execution.
+  When running on CPU, ensure you have the **CPU-only** build of PyTorch installed.
+  If you installed a GPU build without cuDNN, importing `torch` will fail with
+  an error like `libcudnn.so.9` not found. Reinstall the CPU wheel to avoid this dependency:
+
+```bash
+pip install --force-reinstall torch==2.5.1+cpu -f https://download.pytorch.org/whl/cpu
+```
+
 ---
 
 ## :test_tube: Intrinsic Evaluation
