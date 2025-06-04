@@ -77,7 +77,8 @@ These baselines are implemented or re-used from prior work.
   The autoencoder scripts run on **CPU by default**. Only set
   `AERAC_USE_GPU=true` if you have CUDA and cuDNN installed.
 
-The autoencoder scripts run on **CPU by default**. To enable GPU training, set
+# reinstall PyTorch without CUDA support
+pip install --force-reinstall torch --index-url https://download.pytorch.org/whl/cpu
   the environment variable `AERAC_USE_GPU=true` and ensure cuDNN is installed.
 
 We used cuDNN 8.9.6 with CUDA 12. Define `LD_LIBRARY_PATH` and
