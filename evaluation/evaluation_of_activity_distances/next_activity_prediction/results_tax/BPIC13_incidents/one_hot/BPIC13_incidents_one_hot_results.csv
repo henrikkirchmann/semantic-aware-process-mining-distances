@@ -1,0 +1,2 @@
+log,method,accuracy,f1
+BPIC13_incidents,one_hot,0.6763547938860583,0.6923909645923171

@@ -1,0 +1,6 @@
+Accuracy: 0.7
+MCC: 0.6194472700028774
+Brier score: 0.4879866827141982
+Weighted recall: 0.7
+Weighted precision: 0.573268569129717
+Weighted f1: 0.6218716703041697

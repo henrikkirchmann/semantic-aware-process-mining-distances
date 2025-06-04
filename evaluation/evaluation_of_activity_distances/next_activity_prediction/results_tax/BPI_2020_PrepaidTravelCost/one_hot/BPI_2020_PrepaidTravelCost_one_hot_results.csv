@@ -1,0 +1,2 @@
+log,method,accuracy,f1
+BPI_2020_PrepaidTravelCost,one_hot,0.8582214765100671,0.8363967234654901

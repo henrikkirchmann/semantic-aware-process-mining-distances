@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 """
-Standalone Next-Activity Prediction Evaluation Pipeline (Standalone Version)
 
-This script loads logs from pre‐defined directories, converts each trace to a sequence of event IDs (with an “[EOC]” token),
-computes intrinsic embeddings (if not using one_hot), builds a stateful LSTM model, trains it, and then evaluates next–activity prediction.
-It supports all intrinsic embedding methods (with window–size variations) as specified below.
-
-Parameters are set directly in the script.
 """
 
 import os, sys, copy, random, time, re
 from datetime import datetime
 import numpy as np
 # Set cuDNN environment variables (must be set before TensorFlow is imported)
+"""
 if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ[
         "LD_LIBRARY_PATH"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib:" + os.environ.get(
@@ -22,8 +17,9 @@ if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ["MY_CUDNN_SET"] = "true"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
+"""
 import tensorflow as tf
 from tensorflow.python.keras.backend import set_session
 from pathlib import Path
@@ -85,12 +81,11 @@ np.random.seed(42)
 #model_file_name = file_name + ".h5"
 
 # ----------------------- Vectorization Functions -----------------------
-def vectorize_log(log, idx):
+def vectorize_log(log, idx, current_idx):
     """
     Convert a log (list of traces) into a list of lists of event IDs.
     Updates global idx and appends a special “[EOC]” token at the end of each trace.
     """
-    current_idx = 0
     vectorized_log = []
     for trace in log:
         trace_ids = []
@@ -105,7 +100,7 @@ def vectorize_log(log, idx):
             current_idx += 1
         trace_ids.append(idx["[EOC]"])
         vectorized_log.append(trace_ids)
-    return vectorized_log, current_idx
+    return vectorized_log, idx, current_idx
 
 
 def split_input_target(chunk):
@@ -194,7 +189,7 @@ def loss_fn(labels, logits):
 import itertools
 
 embedding_methods = [
-    "one_hot",
+    'one_hot',
     "Bose 2009 Substitution Scores",
     "De Koninck 2018 act2vec CBOW",
     "De Koninck 2018 act2vec skip-gram",
@@ -210,17 +205,16 @@ embedding_methods = [
     "Activity-Context N-Grams PMI",
     "Activity-Context Bag Of Words PPMI",
     "Activity-Context N-Grams PPMI",
-    "Chiorrini 2022 Embedding Process Structure",
-    "Gamallo Fernandez 2023 Context Based"
-]
-
-
+    "Chiorrini 2022 Embedding Process Structure"]
 
 from evaluation.data_util.util_activity_distances_intrinsic import add_window_size_evaluation
 
 window_size_list = [3, 5, 9]
 
 encoding_methods = add_window_size_evaluation(embedding_methods, window_size_list)
+encoding_methods.append("Gamallo Fernandez 2023 Context Based w_3")
+
+
 print("Encoding methods to evaluate:")
 print(encoding_methods)
 
@@ -235,7 +229,10 @@ def extract_window_size(s):
 
 def get_embeddings_for_method(method, embedding_input):
     # Remove termination tokens.
+
     log_input = [trace[:-1] for trace in embedding_input]
+    log_input = [[str(num) for num in sublist] for sublist in log_input]
+
     alphabet = sorted(set(token for trace in log_input for token in trace))
     win_size = extract_window_size(method)
     if method == "one_hot":
@@ -304,6 +301,7 @@ def get_embeddings_for_method(method, embedding_input):
         raise ValueError("Unknown encoding method: " + method)
 
 def create_embedding_matrix(idx, activity_embeddings, emb_dim):
+    activity_embeddings = {int(key): value for key, value in activity_embeddings .items()}
     matrix = np.zeros((len(idx), emb_dim))
     for token, i in idx.items():
         if i in activity_embeddings:
@@ -339,10 +337,11 @@ for raw_log in raw_logs:
                                         parameters={"timestamp_sort": True, "timestamp_key": "time:timestamp"})
 
     idx = {}
-    vectorized_full, current_idx = vectorize_log(log_full, idx)
-    X_train, _ = vectorize_log(train_log, idx)  # Use full log for vocabulary
-    X_val, _ = vectorize_log(val_log, idx)
-    X_test, _ = vectorize_log(test_log, idx)
+    current_idx = 0
+    vectorized_full, idx, current_idx = vectorize_log(log_full, idx, current_idx)
+    X_train, _, _ = vectorize_log(train_log, idx, current_idx)  # Use full log for vocabulary
+    X_val, _, _ = vectorize_log(val_log, idx, current_idx)
+    X_test, _, _ = vectorize_log(test_log, idx, current_idx)
 
     print("Full log events:", sum(len(x) for x in vectorized_full))
     print("Test events:", sum(len(x) for x in X_test))
@@ -374,8 +373,7 @@ for raw_log in raw_logs:
                 else:
                     raise ValueError("Unknown embedding_source")
                 try:
-                    activity_embeddings, dim = get_embeddings_for_method(method, embedding_input)
-                    chosen_emb_dim = dim  # Force to our desired dimension.
+                    activity_embeddings, chosen_emb_dim = get_embeddings_for_method(method, embedding_input)
                 except Exception as e:
                     print(f"Error computing embeddings for method {method} on log {log_name}: {e}")
         print("Final encoding dimension:", chosen_emb_dim)

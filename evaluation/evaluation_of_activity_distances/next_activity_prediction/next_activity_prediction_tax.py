@@ -1,33 +1,6 @@
 #!/usr/bin/env python
-"""
-Standalone Next-Activity Prediction Evaluation Pipeline
 
-This script loops over all logs in RAW_DATASETS_DIR and their corresponding
-pre‐split files in SPLIT_DATASETS_DIR. For each log and for each input encoding
-method (either "one_hot" or one of our computed embedding methods), the script:
-  1. Loads the full, train, validation, and test logs using PM4Py.
-  2. Builds a vocabulary from the full log (for one‐hot targets).
-  3. Depending on the chosen encoding mode:
-       - If "one_hot": uses the original one‐hot representation.
-       - Otherwise, computes activity embeddings using one of our intrinsic methods.
-         You can choose to compute embeddings from the "train", "validation", or "train_val" split.
-         Supported methods (with window–size variations) include:
-           • Unit Distance
-           • Bose 2009 Substitution Scores
-           • De Koninck 2018 act2vec CBOW
-           • De Koninck 2018 act2vec skip-gram
-           • Activity-Activitiy Co Occurrence (Bag Of Words, N-Gram, PMI, PPMI)
-           • Activity-Context (Bag Of Words, N-Grams, PMI, PPMI)
-           • Chiorrini 2022 Embedding Process Structure
-           • Gamallo Fernandez 2023 Context Based (if needed)
-  4. Vectorizes each trace (each time step is represented by the activity encoding
-     concatenated with 5 time features).
-  5. Builds, trains, and evaluates an LSTM–based next–activity prediction model.
-  6. Saves the accuracy and weighted F1–score for each log/method combination as CSV files.
-  7. Aggregates and prints (and saves) the average scores per method over all logs.
 
-Author: Modified for standalone evaluation
-"""
 
 import os, sys, copy, random, time, re
 from datetime import datetime, timedelta
@@ -50,6 +23,7 @@ from distances.activity_distances.gamallo_fernandez_2023_context_based_represent
 
 # -----------------------
 # Set cuDNN environment variables (must be set before TensorFlow is imported)
+""" 
 if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ[
         "LD_LIBRARY_PATH"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib:" + os.environ.get(
@@ -59,9 +33,9 @@ if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ["MY_CUDNN_SET"] = "true"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-#os.environ["TF_DETERMINISTIC_OPS"] = "1"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["TF_DETERMINISTIC_OPS"] = "1"
+"""
 import tensorflow as tf
 # Set TensorFlow seeds to reduce randomness.
 tf.compat.v1.set_random_seed(42)
@@ -79,12 +53,16 @@ print("GPUs available:", tf.config.list_physical_devices('GPU'))
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        print(len(gpus), "Physical GPUs,", len(tf.config.experimental.list_logical_devices('GPU')), "Logical GPUs")
+        # Limit TensorFlow to use 4096 MB on the first GPU.
+        """
+        tf.config.set_logical_device_configuration(
+            gpus[0],
+            [tf.config.LogicalDeviceConfiguration(memory_limit=20096)])
+        """
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
         print(e)
-
 # Set other seeds for reproducibility.
 random.seed(42)
 np.random.seed(42)
@@ -164,9 +142,7 @@ encoding_methods = [
 ]
 
 encoding_methods = [
-    "one_hot",
-    "Uniform Zero Embedding",
-    "Random Uniform Embedding"]
+    "one_hot"]
 # Optionally, add window size variations.
 from evaluation.data_util.util_activity_distances_intrinsic import add_window_size_evaluation
 
@@ -174,6 +150,8 @@ window_size_list = [3, 5, 9]
 # For reproducibility, you can choose a single window size.
 
 encoding_methods = add_window_size_evaluation(encoding_methods, window_size_list)
+encoding_methods = ["one_hot"]
+
 #encoding_methods = ["Gamallo Fernandez 2023 Context Based w_3"]
 print("Encoding methods to evaluate:")
 print(encoding_methods)
@@ -346,6 +324,7 @@ def vectorize_fold(lines, ts, ts2, ts3, ts4, divisor, divisor2, encoding_dim, ex
     return X, y_act, y_time
 
 raw_logs = [f for f in os.listdir(RAW_DATASETS_DIR) if f.endswith(".xes.gz")]
+print(raw_logs)
 results_summary = []
 
 for raw_log in raw_logs:

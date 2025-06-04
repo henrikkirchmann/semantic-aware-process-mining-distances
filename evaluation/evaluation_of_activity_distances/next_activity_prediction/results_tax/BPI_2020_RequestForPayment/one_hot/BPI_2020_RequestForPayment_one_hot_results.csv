@@ -1,0 +1,2 @@
+log,method,accuracy,f1
+BPI_2020_RequestForPayment,one_hot,0.8882659191029235,0.8581150090905211
