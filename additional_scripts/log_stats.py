@@ -7,7 +7,7 @@ from evaluation.data_util.util_activity_distances_intrinsic import get_log_contr
 from evaluation.data_util.util_activity_distances import get_alphabet
 
 # Directory with the logs
-LOGS_DIR = os.path.join(ROOT_DIR, "event_logs")
+LOGS_DIR = "/vol/home-vol3/dbisteam/kirchmhe/PycharmProjects/semantic-aware-process-mining-distances/evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets"
 
 # Find all XES logs (gzipped)
 raw_logs = [f for f in os.listdir(LOGS_DIR) if f.endswith(".xes.gz")]

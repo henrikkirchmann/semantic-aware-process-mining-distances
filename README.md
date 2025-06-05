@@ -60,12 +60,13 @@ Our proposed methods derive activity embeddings and distributional similarity fr
 
 These baselines are implemented or re-used from prior work.
 
-| Method | Description                                         | Paper                                                                                                                                                                     | Original Implementation | File Location in this Repo                                                                                                                                                                                                                           |
-|--------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Substitution Scores** | Co-occurrence-based similarity using log-ratios     | Context Aware Trace Clustering: Towards Improving Process Mining Results; Bose & van der Aalst (2009), [DOI](https://doi.org/10.1137/1.9781611972795.35)                  | Re-implemented from authors' Java code | [`distances/activity_distances/bose_2009_context_aware_trace_clustering/algorithm.py`](./distances/activity_distances/bose_2009_context_aware_trace_clustering/algorithm.py)                                                                         |
-| **act2vec** | Neural embeddings adapted from Word2Vec (CBOW & Skip-gram) | act2vec, trace2vec, log2vec, and model2vec: Representation Learning for Business Processes; De Koninck et al. (2018), [DOI](https://doi.org/10.1007/978-3-319-98648-7_18) | [processmining.be/replearn](https://processmining.be/replearn/) | [`distances/activity_distances/de_koninck_2018_act2vec/algorithm.py`](./distances/activity_distances/de_koninck_2018_act2vec/algorithm.py)                                                                                                           |
-| **Embedding Process Structure** | Feature vectors based on Petri nets and process structure | Embedding Process Structure in Activities for Process Mapping and Comparison; Chiorrini et al. (2022)  [DOI](https://doi.org/10.1007/978-3-031-15743-1_12)                | [GitHub Repo](https://github.com/KDMG/Embedding-Structure-in-Activities) | [`distances/activity_distances/chiorrini_2022_embedding_process_structure/embedding_process_structure.py`](./distances/activity_distances/chiorrini_2022_embedding_process_structure/embedding_process_structure.py)                                 |
-| **Autoencoder** | Context-based representation learning via autoencoders | Learning Context-Based Representations of Events in Complex Processes; Gamallo-Fernandez et al. (2023), [DOI](https://doi.org/10.1109/ICWS60048.2023.00041)               | [GitLab Source](https://gitlab.citius.gal/pedro.gamallo/PM_Embeddings/-/blob/master/src/embeddings_generator/aerac.py?ref_type=heads) | [`distances/activity_distances/gamallo_fernandez_2023_context_based_representations/src/embeddings_generator/main_new.py`](./distances/activity_distances/gamallo_fernandez_2023_context_based_representations/src/embeddings_generator/main_new.py) |
+| Method                        | Description                                         | Paper                                                                                                                                                                     | Original Implementation | Name in this Repo                          | File Location in this Repo                                                                                                                                                                                                                           |
+|------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Substitution Scores**      | Co-occurrence-based similarity using log-ratios     | Context Aware Trace Clustering: Towards Improving Process Mining Results; Bose & van der Aalst (2009), [DOI](https://doi.org/10.1137/1.9781611972795.35)                  | Re-implemented from authors' Java code | Bose 2009 Substitution Scores              | [`distances/activity_distances/bose_2009_context_aware_trace_clustering/algorithm.py`](./distances/activity_distances/bose_2009_context_aware_trace_clustering/algorithm.py)                                                                         |
+| **act2vec** (CBOW)           | Neural embeddings adapted from Word2Vec (CBOW)      | act2vec, trace2vec, log2vec, and model2vec: Representation Learning for Business Processes; De Koninck et al. (2018), [DOI](https://doi.org/10.1007/978-3-319-98648-7_18) | [processmining.be/replearn](https://processmining.be/replearn/) | De Koninck 2018 act2vec CBOW               | [`distances/activity_distances/de_koninck_2018_act2vec/algorithm.py`](./distances/activity_distances/de_koninck_2018_act2vec/algorithm.py)                                                                                                           |
+| **act2vec** (Skip-gram)      | Neural embeddings adapted from Word2Vec (Skip-gram) | act2vec, trace2vec, log2vec, and model2vec: Representation Learning for Business Processes; De Koninck et al. (2018), [DOI](https://doi.org/10.1007/978-3-319-98648-7_18) | [processmining.be/replearn](https://processmining.be/replearn/) | De Koninck 2018 act2vec skip-gram          | [`distances/activity_distances/de_koninck_2018_act2vec/algorithm.py`](./distances/activity_distances/de_koninck_2018_act2vec/algorithm.py)                                                                                                           |
+| **Embedding Process Structure** | Feature vectors based on Petri nets and process structure | Embedding Process Structure in Activities for Process Mapping and Comparison; Chiorrini et al. (2022)  [DOI](https://doi.org/10.1007/978-3-031-15743-1_12)                | [GitHub Repo](https://github.com/KDMG/Embedding-Structure-in-Activities) | Chiorrini 2022 Embedding Process Structure | [`distances/activity_distances/chiorrini_2022_embedding_process_structure/embedding_process_structure.py`](./distances/activity_distances/chiorrini_2022_embedding_process_structure/embedding_process_structure.py)                                 |
+| **Autoencoder**              | Context-based representation learning via autoencoders | Learning Context-Based Representations of Events in Complex Processes; Gamallo-Fernandez et al. (2023), [DOI](https://doi.org/10.1109/ICWS60048.2023.00041)               | [GitLab Source](https://gitlab.citius.gal/pedro.gamallo/PM_Embeddings/-/blob/master/src/embeddings_generator/aerac.py?ref_type=heads) | Gamallo Fernandez 2023 Context Based       | [`distances/activity_distances/gamallo_fernandez_2023_context_based_representations/src/embeddings_generator/main_new.py`](./distances/activity_distances/gamallo_fernandez_2023_context_based_representations/src/embeddings_generator/main_new.py) |
 
 ---
 
@@ -234,7 +235,7 @@ This file contains a `DataFrame` with one row per method and the following colum
 
 
 ---
-### 🔎 Analyzing Results in Intrinsic Evaluation
+### 📊 Analyzing Results in Intrinsic Evaluation
 
 To analyze and visualize the intrinsic evaluation results across all logs, run:
 > [`additional_scripts/calculate_average_intrinsic_results.py`](additional_scripts/calculate_average_intrinsic_results.py)
@@ -250,6 +251,92 @@ Before running the analysis script:
    results/activity_distances/intrinsic_df_avg/
    ```
 
+### 🔎 Intrinsic Evaluation Measures 
+
+#### Shared Notation for Intrinsic Evaluation Measures
+
+Let $L$ be an original event log, and $L'$ the modified log as described in *Algorithm 1*. Define:
+
+- **$A_r = A(L) \setminus A(L')$**: the set of activities replaced in $L$
+- **$A_{new} = A(L') \setminus A(L)$**: the set of new activities
+- **$\psi: A_r \to \mathcal{P}(A_{new})$**: maps each replaced activity to the set of activities that replaced it
+- **$\phi: A(L') \to A(L)$**: maps each new activity to the original activity it replaced (identity for others)
+- **$d: A(L') \times A(L') \to \mathbb{R}$**: a distance function on activities (low distance reflects high similarity be evaluated method)
+- **$\hat{d}: A(L') \times A(L') \to [0, 1]$**: normalized version of $d$, scaled to $[0, 1]$
+
+---
+
+#### Compactness (called diameter in this repo)
+
+This measure captures the average intra-class distance, normalized by the largest observed distance. If distances can be negative (e.g., see Bose et al., 2009), we shift them before normalization.
+
+**Definition:**
+
+```math
+I_{comp} = \frac{1}{|A_r|} \sum_{a_r \in A_r} \frac{1}{|\psi(a_r)|^2 - |\psi(a_r)|} \sum_{\substack{a_i, a_j \in \psi(a_r) \\ a_i \neq a_j}} \hat{d}(a_i, a_j)
+```
+
+---
+
+#### Nearest Neighbor (called precision@1 in this repo)
+
+This measure counts how often the nearest neighbor of a new activity belongs to the same class.
+
+**Definition:**
+
+```math
+I_{nn} = \frac{1}{|A_r|} \sum_{a_r \in A_r} \frac{1}{|\psi(a_r)|} \sum_{a_{new} \in \psi(a_r)} \mathbf{1}(a_{new})
+```
+
+Where:
+
+```math
+\mathbf{1}(a_{new}) =
+\begin{cases}
+1, & \phi(a_{new}) = \phi(\arg\min_{a \neq a_{new}} d(a_{new}, a)) \\
+0, & \text{otherwise}
+\end{cases}
+```
+
+---
+
+#### Precision@k
+
+For each new activity, we check what proportion of its top-`k` nearest neighbors belong to the same class.
+
+**Definition:**
+
+```math
+I_{prec} = \frac{1}{|A_r|} \sum_{a_r \in A_r} \frac{1}{|\psi(a_r)|} \sum_{a_{new} \in \psi(a_r)} \frac{1}{k} \left|\left\{ a \in \mathrm{KNN}(a_{new}) \;\middle|\; \phi(a) = \phi(a_{new}) \right\}\right|
+```
+
+Where:
+
+- $KNN(a_{new})$ returns the $k = |\psi(a_{new})| - 1$ nearest neighbors of $a_new$ in $A(L') \setminus \{a_{new}\}$ according to $d$.
+
+---
+
+#### Triplet
+
+We measure how often an out-of-class activity is farther from a given anchor than another in-class activity.
+
+**Definition:**
+
+```math
+I_{tri} = \frac{1}{|A_r|} \sum_{a_r \in A_r} \frac{1}{|\psi(a_r)|^2 - |\psi(a_r)|} \sum_{\substack{a_i, a_j \in \psi(a_r) \\ a_i \neq a_j}} \frac{1}{|A(L') \setminus \psi(a_r)|} \sum_{a_k \notin \psi(a_r)} \mathbf{1}(a_i, a_j, a_k)
+```
+
+Where:
+
+```math
+\mathbf{1}(a_i, a_j, a_k) =
+\begin{cases}
+1, & d(a_i, a_j) < d(a_i, a_k) \\
+0, & \text{otherwise}
+\end{cases}
+```
+
+
 ## :fast_forward: Next Activity Prediction
 
 Following the approach of **Gamallo-Fernandez et al. (2023)** — *"Learning Context-Based Representations of Events in Complex Processes"* ([DOI](https://doi.org/10.1109/ICWS60048.2023.00041)) — we initialize the embedding layer of a next-activity prediction model with **pre-trained activity embeddings**, and **freeze its weights during training** to evaluate their effectiveness.
@@ -259,21 +346,23 @@ Following the approach of **Gamallo-Fernandez et al. (2023)** — *"Learning Con
 ### 📁 Datasets
 
 - Raw event logs are located in:  
-  `evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`
+  [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets)
+and [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated)
 
-- Logs are split into:
+- We have split with [`evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py) the logs into:
   - 64% training
   - 16% validation
   - 20% test
 
 - The splits are saved under:  
-  `evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/`
+  [`evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/)
 
-All logs found in the `raw_datasets` folder will be used automatically for training and evaluation.
+All logs found in the [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets) folder will be used automatically for training and evaluation.
+You can move the other logs you want to evaluate from [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated) to this folder.
 
 ---
 
-### 🧠 Evermann Model
+### 🤖 Evermann Model
 
 > Evermann, J., Rehse, J.-R., & Fettke, P.  
 > *"Predicting process behaviour using deep learning."*  
@@ -290,11 +379,18 @@ IEEE Transactions on Services Computing, 16(1), 739–756.
 
 #### ▶️ Running the Benchmark
 
-Execute the following script to start training and evaluation:
+To start training and evaluation of the Evermann model, execute the following script:
 
 > [`evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_everman.py)
 
+---
 
+#### ⚙️ Configurable Settings
+
+You can configure which similarity / embedding methods the Evermann model will be evaluated with by modifying the `embedding_methods` list in the script.
+
+- **`'one_hot'`** represents the **baseline** configuration.  
+  In this mode, the embedding layer is **randomly initialized** and **trained from scratch** during model training.
 ---
 
 #### 📊 Evermann Model Results

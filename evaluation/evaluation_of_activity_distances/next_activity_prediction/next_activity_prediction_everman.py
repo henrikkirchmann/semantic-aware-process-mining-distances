@@ -1,13 +1,20 @@
 #!/usr/bin/env python
 """
+Standalone Next-Activity Prediction Evaluation Pipeline (Standalone Version)
 
+This script loads logs from pre‐defined directories, converts each trace to a sequence of event IDs (with an “[EOC]” token),
+computes intrinsic embeddings (if not using one_hot), builds a stateful LSTM model, trains it, and then evaluates next–activity prediction.
+It supports all intrinsic embedding methods (with window–size variations) as specified below.
+
+Parameters are set directly in the script.
 """
 
 import os, sys, copy, random, time, re
+#import ollama
 from datetime import datetime
 import numpy as np
 # Set cuDNN environment variables (must be set before TensorFlow is imported)
-"""
+""" 
 if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ[
         "LD_LIBRARY_PATH"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib:" + os.environ.get(
@@ -16,11 +23,9 @@ if os.environ.get("MY_CUDNN_SET") != "true":
         "LD_PRELOAD"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib/libcudnn.so.8.9.6"
     os.environ["MY_CUDNN_SET"] = "true"
     os.execv(sys.executable, [sys.executable] + sys.argv)
-
-"""""
+"""
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
-
 import tensorflow as tf
 from tensorflow.python.keras.backend import set_session
 from pathlib import Path
@@ -215,6 +220,7 @@ window_size_list = [3, 5, 9]
 encoding_methods = add_window_size_evaluation(embedding_methods, window_size_list)
 encoding_methods.append("Gamallo Fernandez 2023 Context Based w_3")
 
+encoding_methods = ["one_hot"]
 
 print("Encoding methods to evaluate:")
 print(encoding_methods)
@@ -228,7 +234,7 @@ def extract_window_size(s):
 
 
 
-def get_embeddings_for_method(method, embedding_input):
+def get_embeddings_for_method(method, embedding_input, idx):
     # Remove termination tokens.
 
     log_input = [trace[:-1] for trace in embedding_input]
@@ -300,6 +306,18 @@ def get_embeddings_for_method(method, embedding_input):
         return emb, len(next(iter(emb.values())))
     else:
         raise ValueError("Unknown encoding method: " + method)
+
+    """
+    elif method.startswith("nomic"):
+        # Resulting dict mapping int IDs to embeddings
+        emb = {}
+        for text, id in idx.items():
+            response = ollama.embeddings(model='nomic-embed-text', prompt=text)
+            embedding = response['embedding']  # Extracting the embedding
+            # Convert the embedding list into a numpy array
+            emb[id] = np.array(embedding)
+        return emb, len(next(iter(emb.values())))
+    """
 
 def create_embedding_matrix(idx, activity_embeddings, emb_dim):
     activity_embeddings = {int(key): value for key, value in activity_embeddings .items()}
@@ -374,7 +392,7 @@ for raw_log in raw_logs:
                 else:
                     raise ValueError("Unknown embedding_source")
                 try:
-                    activity_embeddings, chosen_emb_dim = get_embeddings_for_method(method, embedding_input)
+                    activity_embeddings, chosen_emb_dim = get_embeddings_for_method(method, embedding_input, idx)
                 except Exception as e:
                     print(f"Error computing embeddings for method {method} on log {log_name}: {e}")
         print("Final encoding dimension:", chosen_emb_dim)
@@ -402,7 +420,7 @@ for raw_log in raw_logs:
 
         history = model.fit(
             train_dataset,
-            epochs=100,
+            epochs=5,
             callbacks=[checkpoint_callback],
             validation_data=val_dataset
         )
