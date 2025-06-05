@@ -17,9 +17,10 @@ if os.environ.get("MY_CUDNN_SET") != "true":
     os.environ["MY_CUDNN_SET"] = "true"
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
+"""""
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
-"""
+
 import tensorflow as tf
 from tensorflow.python.keras.backend import set_session
 from pathlib import Path
