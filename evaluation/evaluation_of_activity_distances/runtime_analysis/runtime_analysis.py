@@ -261,21 +261,15 @@ if __name__ == '__main__':
 
     activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
 
-    activity_distance_functions = ["Gamallo Fernandez 2023 Context Based w_3"]
+    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")
 
     # Define the logs to evaluate
     log_list = [
-        "BPIC13_closed_problems",
-        'BPIC15_1',
-        "BPIC20_DomesticDeclarations"
-
+        'Sepsis'
     ]
 
-    log_list = [
-        "BPIC19"
-    ]
 
-    number_of_repetitions = 1
+    number_of_repetitions = 5
 
     # Evaluate runtimes
     print(f"Evaluating runtimes with {number_of_repetitions} repetitions...")

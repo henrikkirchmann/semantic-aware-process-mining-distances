@@ -416,10 +416,9 @@ results_everman/<log_name>/<method>/
 #### 📈 Analyzing Evermann Results
 
 To aggregate and analyze model performance across logs, run:
- additional_scripts/calculate_next_activity_results_everman.py
+[`additional_scripts/calculate_next_activity_results_everman.py`](additional_scripts/calculate_next_activity_results_everman.py)
 
-
-#### 🔧 Before Running:
+Before Running:
 
 Make sure to configure the `all_logs` list in the script to specify which logs you want to include in the analysis.
 
@@ -438,11 +437,11 @@ Our implementation follows the codebase provided in:
 
 To train and evaluate the Tax model on your logs, run:
 
-```
-evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_tax.py
-```
 
-This will process all logs in `raw_datasets/`, using predefined splits and save results accordingly.
+[`evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_tax.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/next_activity_prediction_tax.py)
+
+
+This will process all logs in [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets), using predefined splits and save results accordingly.
 
 ---
 
@@ -450,14 +449,8 @@ This will process all logs in `raw_datasets/`, using predefined splits and save 
 
 All output files will be stored in:
 
-```
-evaluation/evaluation_of_activity_distances/next_activity_prediction/results_tax/
-```
 
-Each method-log combination will result in:
-
-- Performance metrics
-- Raw prediction files
+[`evaluation/evaluation_of_activity_distances/next_activity_prediction/results_tax/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/results_tax)
 
 ---
 
@@ -465,17 +458,14 @@ Each method-log combination will result in:
 
 To aggregate and visualize the performance across different logs:
 
-```
-additional_scripts/calculate_next_activity_results_tax.py
-```
+[`additional_scripts/calculate_next_activity_results_tax.py`](additional_scripts/calculate_next_activity_results_tax.py)
 
-Before running the analysis script, ensure the `all_logs` list inside it reflects the target logs you'd like to analyze.
 
 ---
 
 ## :hourglass_flowing_sand: Runtime Analysis
 
-Run evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py
+Run [`evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py`](evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py)
 
 ## 🗃️ Datasets
 

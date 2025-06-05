@@ -1,29 +1,10 @@
 #!/usr/bin/env python
-"""
-Standalone Next-Activity Prediction Evaluation Pipeline (Standalone Version)
-
-This script loads logs from pre‐defined directories, converts each trace to a sequence of event IDs (with an “[EOC]” token),
-computes intrinsic embeddings (if not using one_hot), builds a stateful LSTM model, trains it, and then evaluates next–activity prediction.
-It supports all intrinsic embedding methods (with window–size variations) as specified below.
-
-Parameters are set directly in the script.
-"""
 
 import os, sys, copy, random, time, re
 #import ollama
 from datetime import datetime
 import numpy as np
-# Set cuDNN environment variables (must be set before TensorFlow is imported)
-""" 
-if os.environ.get("MY_CUDNN_SET") != "true":
-    os.environ[
-        "LD_LIBRARY_PATH"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib:" + os.environ.get(
-        "LD_LIBRARY_PATH", "")
-    os.environ[
-        "LD_PRELOAD"] = "/vol/fob-vol4/mi17/kirchmah/cudnn-8.9.6/cudnn-linux-x86_64-8.9.6.50_cuda12-archive/lib/libcudnn.so.8.9.6"
-    os.environ["MY_CUDNN_SET"] = "true"
-    os.execv(sys.executable, [sys.executable] + sys.argv)
-"""
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
 import tensorflow as tf
@@ -420,7 +401,7 @@ for raw_log in raw_logs:
 
         history = model.fit(
             train_dataset,
-            epochs=5,
+            epochs=100,
             callbacks=[checkpoint_callback],
             validation_data=val_dataset
         )
@@ -451,6 +432,7 @@ for raw_log in raw_logs:
             last_case_id = idx["[EOC]"]
             d = os.path.join(RESULTS_DIR, log_name, method)
             os.makedirs(d, exist_ok=True)
+
             raw_result_file = "raw_" + log_name + ".csv"
             with open(os.path.join(d, raw_result_file), "w") as f:
                 f.write("prefix_length;ground_truth;predicted;prediction_probs\n")
@@ -468,6 +450,7 @@ for raw_log in raw_logs:
                                 np.array2string(probs.numpy(), separator=",", max_line_width=99999) + "\n")
                         if next_event == last_case_id:
                             break
+
             from sklearn.metrics import accuracy_score, matthews_corrcoef, f1_score, precision_score, recall_score
 
             y_pred_a = np.argmax(y_pred, axis=1)
@@ -487,6 +470,10 @@ for raw_log in raw_logs:
                 f.write("\nWeighted precision: " + str(precision_score(y_true_a, y_pred_a, average="weighted")))
                 f.write("\nWeighted f1: " + str(f1_score(y_true_a, y_pred_a, average="weighted")))
             print(f"Results for log {log_name} with method {method} saved.")
+
+            # Delete the CSV after it's no longer needed
+            if os.path.exists(os.path.join(d, raw_result_file)):
+                os.remove(os.path.join(d, raw_result_file))
 
         tf.keras.backend.clear_session()
         # For demonstration, append dummy results.
