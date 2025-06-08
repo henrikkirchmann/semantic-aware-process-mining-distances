@@ -395,7 +395,7 @@ You can configure which similarity / embedding methods the Evermann model will b
 
 #### 📊 Evermann Model Results
 
-For each `<log_name>` and embedding `<method>`, results are saved to:
+For each `<log_name>` and embedding `<method>`, results are saved to [`evaluation/evaluation_of_activity_distances/next_activity_prediction/results_everman`](evaluation/evaluation_of_activity_distances/next_activity_prediction/results_everman):
 
 ```
 results_everman/<log_name>/<method>/

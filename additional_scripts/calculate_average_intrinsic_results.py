@@ -9,10 +9,10 @@ import seaborn as sns
 
 EVENT_LOGS_DIR = os.path.join(ROOT_DIR , "evaluation", "evaluation_of_activity_distances", "event_logs", "intrinsic_evaluation", "results")
 
-all_logs = ["Sepsis"]
+#all_logs = ["Sepsis"]
 
 #all logs
-""" 
+#"""
 all_logs = ['BPIC12',
             'BPIC12_A',
             'BPIC12_Complete',
@@ -41,7 +41,7 @@ all_logs = ['BPIC12',
             'Hospital Billing',
             'RTFM',
             'Sepsis']
-"""
+#"""
 
 #Logs where Autoencoder produced results
 """ 
