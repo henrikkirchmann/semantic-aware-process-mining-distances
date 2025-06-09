@@ -275,7 +275,8 @@ This measure captures the average intra-class distance, normalized by the larges
 ```math
 I_{comp} = \frac{1}{|A_r|} \sum_{a_r \in A_r} \frac{1}{|\psi(a_r)|^2 - |\psi(a_r)|} \sum_{\substack{a_i, a_j \in \psi(a_r) \\ a_i \neq a_j}} \hat{d}(a_i, a_j)
 ```
-In the paper, the values for I_{comp} are computed as 1 - I_{comp}, to align with other metrics, ensuring that higher values indicate better performance.
+In the paper, the values for $I_{comp}$ are computed as $1 - I_{comp}$, to align with other metrics, ensuring that higher values indicate better performance.
+
 ---
 
 #### Nearest Neighbor (called precision@1 in this repo)
