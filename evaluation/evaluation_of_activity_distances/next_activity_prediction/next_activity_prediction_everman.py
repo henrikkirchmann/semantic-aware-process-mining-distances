@@ -201,7 +201,6 @@ window_size_list = [3, 5, 9]
 encoding_methods = add_window_size_evaluation(embedding_methods, window_size_list)
 encoding_methods.append("Gamallo Fernandez 2023 Context Based w_3")
 
-encoding_methods = ["one_hot"]
 
 print("Encoding methods to evaluate:")
 print(encoding_methods)
