@@ -18,7 +18,7 @@ from evaluation.data_util.util_activity_distances_intrinsic import (
 )
 
 
-def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size, load_activities = True):
+def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size, load_ground_truth_logs):
     # Load event logs from files
     for log_name in log_list:
 
@@ -42,7 +42,7 @@ def evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling
         combinations = [
             (
                 different_activities_to_replace_count, activities_to_replace_with_count, log_control_flow_perspective,
-                alphabet, activity_distance_functions, sampling_size, load_activities, log_name)
+                alphabet, activity_distance_functions, sampling_size, load_ground_truth_logs, log_name)
             for different_activities_to_replace_count in range(1, r + 1)
             for activities_to_replace_with_count in range(2, w + 1)
         ]
@@ -102,9 +102,8 @@ def intrinsic_evaluation(args):
                     different_activities_to_replace_count, activities_to_replace_with_count
                 )
 
-        if create_logs_to_then_save:
-            with open(file_path, "wb") as file:
-                pickle.dump(logs_with_replaced_activities_dict, file)
+        with open(file_path, "wb") as file:
+            pickle.dump(logs_with_replaced_activities_dict, file)
 
     print("start ---- r:" + str(different_activities_to_replace_count) + " w: " + str(activities_to_replace_with_count))
 
@@ -233,7 +232,7 @@ if __name__ == '__main__':
     r_min         = 10
     w             = 5
     sampling_size = 5
-    create_new    = False  # If True, create new ground truth logs. If False, load existing.
+    load_ground_truth_logs = True  # If True, load existing ground truth logs. If False, create new ground truth logs.
     # Pre-generated logs: https://box.hu-berlin.de/d/7a97101239654eae8e6c/
     # Unzip and place in 'evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs'
 
@@ -291,11 +290,11 @@ if __name__ == '__main__':
     print(f" - r_min         : {r_min}")
     print(f" - w             : {w}")
     print(f" - sampling_size : {sampling_size}")
-    print(f" - create_new    : {create_new}")
+    print(f" - load_ground_truth_logs    : {load_ground_truth_logs}")
     print(f" - logs used     : {log_list}")
 
     # ==============================================================================
     # Start Benchmark
     # ==============================================================================
 
-    evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size)
+    evaluate_intrinsic(activity_distance_functions, log_list, r_min, w, sampling_size, load_ground_truth_logs)

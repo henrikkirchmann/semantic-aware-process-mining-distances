@@ -128,13 +128,15 @@ how many differnt activities are replaced \{1, 2, ..., \min(|A_L|, r\_min)\} and
 r_min         = 10     # How many differnt activities are replaced  
 w             = 5      # How many new activites are used to replace each original activty with
 sampling_size = 5      # How many ground truth logs to generate
-create_new    = False   # True = generate new logs; False = use pre-generated ones
+load_ground_truth_logs = True   # If True, load existing ground truth logs. If False, create new ground truth logs. If True, if results of the corresponding parameters exist for the evaluated original log and method load them from evaluation/evaluation_of_activity_distances/intrinsic_evaluation/results
 ```
 
-> 💡 When you want to use the ground truth log we used set `create_new = False`, make sure to unzip and place the folders of the pre-generated logs from  
+> 💡 When you want to use the ground truth log we used, set `load_ground_truth_logs = True`, make sure to unzip and place the folders of the pre-generated logs from  
 > [https://box.hu-berlin.de/d/7a97101239654eae8e6c/](https://box.hu-berlin.de/d/7a97101239654eae8e6c/) into:  
 > [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/`](evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/)\
-> **Note:** The unzipped folder requires **24.7 GB** of storage space.
+> **Note:** The unzipped folder requires **24.7 GB** of storage space.\
+> If you want to recompute the results with the existing results, delete the folders in [`evaluation/evaluation_of_activity_distances/intrinsic_evaluation/results`](evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs/).
+
 
 
 ---
