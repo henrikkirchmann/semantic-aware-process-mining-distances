@@ -468,6 +468,11 @@ To aggregate and visualize the performance across different logs:
 
 Run [`evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py`](evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analysis.py)
 
+Modify the `log_list` list in the script to specify which logs you want to analyze from the folder [`event_logs`](event_logs). 
+
+Adjust the value of `number_of_repetitions = 5` to change how many independent runs each method is averaged over.
+
+
 ## 🗃️ Datasets
 
 
@@ -501,6 +506,6 @@ Run [`evaluation/evaluation_of_activity_distances/runtime_analysis/runtime_analy
 | [Env Permit](https://data.4tu.nl/articles/dataset/Receipt_phase_of_an_environmental_permit_application_process_WABO_CoSeLoG_project/12709127) |                    27 |          1434 |                0.08 |                 1 |      5.98 |        25 | ✓           | ✓           | ×         |
 | [Helpdesk](https://data.4tu.nl/articles/_/12675977/1)                                                                                         |                    14 |          4580 |                0.05 |                 2 |      4.66 |        15 | ✓           | ✓           | ×         |
 | [Hospital Billing](https://data.4tu.nl/articles/_/12705113/1)                                                                                 |                    18 |        100000 |                0.01 |                 1 |      4.51 |       217 | ✓           | ×           | ×         |
-| [Nasa](https://data.4tu.nl/articles/_/12696995/1)                                                                                             |                    47 |          2566 |                0.98 |                12 |     28.7  |        50 | ✓           | ✓           | ×         |
+| [Nasa](https://data.4tu.nl/articles/_/12696995/1)                                                                                             |                    47 |          2566 |                0.98 |                12 |     28.7  |        50 | ×           | ✓           | ×         |
 | [RTFM](https://data.4tu.nl/articles/_/12683249/1)                                                                                             |                    11 |        150370 |                0    |                 2 |      3.73 |        20 | ✓           | ×           | ×         |
 | [Sepsis](https://data.4tu.nl/articles/dataset/Sepsis_Cases_-_Event_Log/12707639/1)                                                            |                    16 |          1050 |                0.81 |                 3 |     14.49 |       185 | ✓           | ✓           | ×         |
