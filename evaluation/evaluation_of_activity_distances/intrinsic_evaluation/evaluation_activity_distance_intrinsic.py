@@ -79,12 +79,12 @@ def intrinsic_evaluation(args):
     # if we want to load created event logs but corresponding file does not exist, save new event logs to disk
     create_logs_to_then_save = False
     # load created event logs
-    if load_logs:
+    path_to_dict = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
+                                "newly_created_logs", log_name)
+    file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
+    file_path = os.path.join(path_to_dict, file_name)
 
-        path_to_dict = os.path.join(ROOT_DIR, "evaluation", "evaluation_of_activity_distances", "intrinsic_evaluation",
-                                    "newly_created_logs", log_name)
-        file_name = f"r_{different_activities_to_replace_count}_w_{activities_to_replace_with_count}_s_{sampling_size}.pkl"
-        file_path = os.path.join(path_to_dict, file_name)
+    if load_logs:
         if os.path.isfile(file_path):
             logs_with_replaced_activities_dict = pickle.load(open(file_path, "rb"))
             activities_to_replace_in_each_run_list = [key for key in logs_with_replaced_activities_dict.keys()]
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
     activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
     activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
-    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")  # set x in w_x to desired window size
+    #activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")  # set x in w_x to desired window size
 
     # ==============================================================================
     # Parameters
