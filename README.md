@@ -13,11 +13,11 @@ Make sure you are using **Python 3.11** to run the scripts.
 
 Install all required packages using the [`requirements.txt`](requirements.txt) file.
 
-**cuDNN & CUDA Setup (Needed to run the Autoencoder approach, otherwise don't add the Autoencoder approach to the activity_distance_functions list, see "Similarity / Embedding Methods" under "Configurable Settings"):**\
-  GPU training is **enabled by default** and requires CUDA with cuDNN. We used
-  **cuDNN 8.9.6** with **CUDA&nbsp;12.1**. Install the PyTorch wheel built for
-  your CUDA version, e.g.:
-
+**cuDNN & CUDA Setup (Required only if using the Autoencoder approach):**\
+   Ensure that a compatible GPU, CUDA, and cuDNN are properly installed and configured.\
+If this setup is not available, do NOT include 'Autoencoder' in the activity_distance_functions list.\
+ (See "Similarity / Embedding Methods" under "Configurable Settings" for more details.) \
+ Run the following command in your terminal:
   ```bash
   pip install torch==2.1.2+cu118 -f https://download.pytorch.org/whl/torch_stable.html
   ```
