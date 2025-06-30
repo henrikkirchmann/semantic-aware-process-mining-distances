@@ -232,7 +232,12 @@ if __name__ == '__main__':
     r_min         = 10
     w             = 5
     sampling_size = 5
-    load_ground_truth_logs = True  # If True, load existing ground truth logs. If False, create new ground truth logs.
+    load_ground_truth_logs = False
+    # If True, load existing ground truth logs if available; otherwise, create and save new ones.
+    # If False, always create new logs without loading existing ones.
+    # If True, if results of the corresponding parameters exist for the evaluated original log and method, load them from evaluation / evaluation_of_activity_distances / intrinsic_evaluation / results, if results file daoes not exist do the experiemnt.
+    # To rerun the experiemnts with new event logs to store them, delete the evaluation / evaluation_of_activity_distances / intrinsic_evaluation / results folder.
+
     # Pre-generated logs: https://box.hu-berlin.de/d/7a97101239654eae8e6c/
     # Unzip and place in 'evaluation/evaluation_of_activity_distances/intrinsic_evaluation/newly_created_logs'
 

@@ -13,7 +13,7 @@ Make sure you are using **Python 3.11** to run the scripts.
 
 Install all required packages using the [`requirements.txt`](requirements.txt) file.
 
-**cuDNN & CUDA Setup (Autoencoder):**\
+**cuDNN & CUDA Setup (Needed to run the Autoencoder approach, otherwise don't add the Autoencoder approach to the activity_distance_functions list, see "Similarity / Embedding Methods" under "Configurable Settings"):**\
   GPU training is **enabled by default** and requires CUDA with cuDNN. We used
   **cuDNN 8.9.6** with **CUDA&nbsp;12.1**. Install the PyTorch wheel built for
   your CUDA version, e.g.:
@@ -38,7 +38,7 @@ We provide a comprehensive benchmarking framework to evaluate distributional sim
 
 The benchmarking framework evaluates both **newly proposed methods** and **existing methods** for computing distributional similarity between activities in event data.
 
-The implementation for each method can be found in [`distances/activity_distances folder`](./distances/activity_distances).
+The implementation for each method can be found in [`distances/activity_distances`](./distances/activity_distances) folder.
 
 
 ### 🆕 New Count-based Methods
@@ -128,7 +128,12 @@ how many differnt activities are replaced \{1, 2, ..., \min(|A_L|, r\_min)\} and
 r_min         = 10     # How many differnt activities are replaced  
 w             = 5      # How many new activites are used to replace each original activty with
 sampling_size = 5      # How many ground truth logs to generate
-load_ground_truth_logs = True   # If True, load existing ground truth logs. If False, create new ground truth logs. If True, if results of the corresponding parameters exist for the evaluated original log and method load them from evaluation/evaluation_of_activity_distances/intrinsic_evaluation/results
+load_ground_truth_logs = False 
+# If True, load existing ground truth logs if available; otherwise, create and save new ones. 
+# If False, always create new logs without loading existing ones.
+# If True, if results of the corresponding parameters exist for the evaluated original log and method, load them from evaluation / evaluation_of_activity_distances / intrinsic_evaluation / results, if results file daoes not exist do the experiemnt. 
+# To rerun the experiemnts with new event logs to store them, delete the evaluation / evaluation_of_activity_distances / intrinsic_evaluation / results folder.
+
 ```
 
 > 💡 When you want to use the ground truth log we used, set `load_ground_truth_logs = True`, make sure to unzip and place the folders of the pre-generated logs from  
