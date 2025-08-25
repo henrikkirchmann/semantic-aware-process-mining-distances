@@ -1,21 +1,4 @@
-# ❗ Wrong Repository Linked in Paper: *Filtering at the Edge: Exploring the Privacy-Utility Trade-Off*  
-
-**Important:** This repository was incorrectly linked in our paper  
-*Filtering at the Edge: Exploring the Privacy-Utility Trade-Off*  
-by Maximilian Weisenseel, Fabian Sandkuhl, Henrik Kirchmann, Matthias Weidlich, and Florian Tschorsch.
-
-This is **not** the codebase used in the paper.
-
-The correct repository for the paper’s code can be found here:  
-👉 [https://github.com/henrikkirchmann/z_anonymity_pm](https://github.com/henrikkirchmann/z_anonymity_pm)
-
-We apologize for any confusion caused.
-
-
-
-
 # Benchmarking Distributional Similarity between Activities in Event Data
-
 
 
 This repository accompanies the ICPM 2025 submission by Kirchmann et al.:
