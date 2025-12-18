@@ -53,6 +53,57 @@ Our proposed methods derive activity embeddings and distributional similarity fr
 - **PMI & PPMI postprocessing:**  
   [`distances/activity_distances/pmi/pmi.py`](./distances/activity_distances/pmi/pmi.py)  
 
+---
+
+## Uncertain Event Logs (Journal Extension – Expected Counts)
+
+This repo also contains an **extension of the count-based family to uncertain event data**, using **expected counts** (probability-weighted frequencies). All code for uncertain data lives in new folders/files containing `uncertain` (so the deterministic code paths remain untouched).
+
+### Key Semantics (Important)
+
+- **Uncertain events**: each event has a probability distribution over activities (stored in XES attribute `probs_json`).
+- **`NA`**: interpreted as **“event absent”** (i.e., the event is dropped in that realization), so context windows must be constructed accordingly.
+- **Exactness vs scalability**: exact counting is still exact, but may produce a huge number of distinct contexts (especially for window size 9).
+
+### Recommended (Latest) Pipeline: Exact + Low RAM (SQLite backend)
+
+Use this if you want **exact results** without 20–30GB RAM spikes.
+
+- **Run all 12 methods × windows 3/5/9 (exact, low RAM)**:  
+  `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows_sqlite_exact.py`  
+  - Computes **AC/AA × Seq/MSet × none/PMI/PPMI** for **w ∈ {3,5,9}**
+  - Uses the SQLite backend below to avoid giant Python dicts in RAM
+  - Can optionally use **in-memory SQLite** (`:memory:`) on machines with enough RAM (auto-switch)
+- **Exact SQLite backend** (streaming aggregation + streaming distance computation):  
+  `distances/uncertain_activity_distances/data_util/uncertain_window_sqlite_backend.py`
+
+### Window-based Counting (Exact, but can be RAM-heavy in Python)
+
+These implement the **latest “window-realization enumeration”** approach, but keep large count maps in Python:
+
+- `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows.py`  
+  - Runs all methods; uses sparse AC math + label compression; can still peak high for w=9
+- `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows_subprocess.py`  
+  - Same as above, but isolates each pass in a subprocess so RSS doesn’t “stick” after a peak
+- `uncertain_scripts/run_uncertain_window_based_counts_demo.py`  
+  - Small demo for window-based expected counts (for understanding / debugging)
+
+### Trace-realization Enumeration (Older exact baseline) / Top‑K Approximation
+
+- **Older exact baseline (trace realization enumeration)**:  
+  `uncertain_scripts/run_uncertain_count_based_all_methods_all_windows.py`
+- **Approximation: top‑K most probable trace realizations (reports covered probability mass)**:  
+  `uncertain_scripts/run_uncertain_topk_most_probable_traces_all_methods.py`
+
+### Utilities / Tests
+
+- **Read uncertain XES into an in-memory structure**: `uncertain_utils/uncertain_xes_reader.py`
+- **Create a new XES with probability thresholding + renormalization**:  
+  `uncertain_scripts/create_xes_uncertain_thresholded_probs.py`
+- **Correctness tests**:
+  - `uncertain_tests/test_uncertain_window_vs_trace_counts.py` (window-based vs trace-based expected counts)
+  - `uncertain_tests/test_sparse_ac_matches_dense_ac.py` (sparse AC math vs dense reference)
+
 
 
 ###  📖 Existing Methods

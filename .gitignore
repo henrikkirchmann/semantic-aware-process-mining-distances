@@ -3,3 +3,27 @@
 /event_logs/Hospital Billing - Event Log.xes
 /event_logs/pdc_2020/
 /venv/
+
+# macOS / editor noise
+**/.DS_Store
+
+# Python bytecode / caches
+**/__pycache__/
+**/*.pyc
+
+# Uncertain pipelines: local artifacts (regenerable)
+/uncertain_tmp_sqlite/
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.sqlite-shm
+**/*.sqlite-wal
+
+# Thresholded uncertain XES files are reproducible via scripts/utilities
+/uncertain_event_logs/*.xes
+
+# Local quicktest artifacts (regenerable)
+/results/*quicktest*.csv
+
+# Local copies of papers/exports accidentally dropped into repo root
+/Process_Science___Distributional_Similarity_Between_Activities_in_Certain_and_Uncertain_Event_Data*.pdf
