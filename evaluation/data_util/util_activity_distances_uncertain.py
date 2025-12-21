@@ -6,8 +6,10 @@ but intentionally does NOT modify the deterministic evaluation code.
 
 Current scope
 -------------
-Only the *count-based* family (AA/AC with None/PMI/PPMI) is implemented here,
-because those are the methods you asked to extend first in the journal extension.
+Primarily the *count-based* family (AA/AC with None/PMI/PPMI) is implemented here.
+
+Additionally, we provide an *uncertain* variant of Act2Vec (CBOW and Skip-gram)
+trained directly on event-level probability distributions (soft labels).
 
 The uncertain log input is expected to be an `UncertainEventLog` created by:
     `uncertain_utils.uncertain_xes_reader.read_uncertain_xes()`
@@ -28,6 +30,10 @@ from distances.uncertain_activity_distances.activity_activity_co_occurence.uncer
 from distances.uncertain_activity_distances.activity_context_frequency.uncertain_activity_context_frequency import (
     get_uncertain_activity_context_frequency_matrix,
 )
+from distances.uncertain_activity_distances.uncertain_act2vec.uncertain_act2vec import (
+    UncertainAct2VecConfig,
+    get_uncertain_act2vec_distance_matrix,
+)
 from uncertain_utils.uncertain_xes_reader import UncertainEventLog
 
 
@@ -46,6 +52,11 @@ UNCERTAIN_COUNT_BASED_METHODS: List[str] = [
     "Uncertain AC MSet",
     "Uncertain AC MSet PMI",
     "Uncertain AC MSet PPMI",
+]
+
+UNCERTAIN_NEURAL_METHODS: List[str] = [
+    "Uncertain act2vec CBOW",
+    "Uncertain act2vec Skip-gram",
 ]
 
 
@@ -74,6 +85,33 @@ def get_uncertain_activity_distance_matrix(
     debug:
         small dict containing embeddings and frequency dicts (useful for inspection)
     """
+    if method_name in UNCERTAIN_NEURAL_METHODS:
+        sg = 0 if method_name.endswith("CBOW") else 1
+        cfg = UncertainAct2VecConfig(
+            window_size=window_size,
+            embedding_dim=16,
+            epochs=10,
+            batch_size=256,
+            start_alpha=0.025,
+            alpha_decay_per_epoch=0.002,
+            min_alpha=0.0001,
+            seed=0,
+            device="cpu",
+            training_mode="window_realizations",
+            prob_threshold=0.0,
+            top_k=top_k,
+            min_prob=min_prob,
+            na_label=na_label,
+            pad_token=".",
+            drop_na_and_renormalize=False,
+            exclude_activities=exclude_activities,
+            progress_every_samples=50_000,
+            negative=5,
+            negative_sampling_exponent=0.75,
+        )
+        dist, emb, dbg = get_uncertain_act2vec_distance_matrix(log, sg=sg, config=cfg, progress=progress)
+        return dist, {"embeddings": emb, **dbg}
+
     if method_name not in UNCERTAIN_COUNT_BASED_METHODS:
         raise ValueError(f"Unknown uncertain method: {method_name!r}")
 
