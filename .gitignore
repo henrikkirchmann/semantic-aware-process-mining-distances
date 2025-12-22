@@ -27,3 +27,9 @@
 
 # Local copies of papers/exports accidentally dropped into repo root
 /Process_Science___Distributional_Similarity_Between_Activities_in_Certain_and_Uncertain_Event_Data*.pdf
+
+# Uncertain intrinsic benchmark artifacts (generated)
+/evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/newly_created_logs/
+/evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/results/
+/results/activity_distances/intrinsic_uncertain/
+/results/activity_distances/intrinsic_uncertain_df_avg/
