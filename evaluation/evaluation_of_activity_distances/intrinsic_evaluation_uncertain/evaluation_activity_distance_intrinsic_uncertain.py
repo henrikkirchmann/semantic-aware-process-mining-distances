@@ -37,6 +37,13 @@ import pickle
 import time
 from multiprocessing import Pool
 
+# Ensure repo root is importable when running this file directly by path (IDE / python -u ...)
+import sys
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from definitions import ROOT_DIR
 from evaluation.data_util.uncertain_evaluation_helpers import add_window_size_evaluation
 from evaluation.data_util.util_activity_distances_intrinsic_metrics_light import (
@@ -64,12 +71,21 @@ from uncertain_utils.uncertain_xes_reader import read_uncertain_xes, UncertainEv
 UNCERTAINTY_LEVELS = [1, 2, 3, 4, 5]
 BASE_TOPK = 5
 
+# Debug / progress verbosity
+VERBOSE = True
+VERBOSE_MAX_EXAMPLES = 3  # limit per-section example prints
+
 
 def _safe_progress(msg: str) -> None:
     try:
         print(msg, flush=True)
     except BrokenPipeError:
         pass
+
+
+def _v(msg: str) -> None:
+    if VERBOSE:
+        _safe_progress(msg)
 
 
 def _read_uncertain_log_from_folder(log_name: str) -> UncertainEventLog:
@@ -96,6 +112,7 @@ def _read_uncertain_log_from_folder(log_name: str) -> UncertainEventLog:
             raise FileNotFoundError(
                 f"Uncertain event log not found. Tried: {xes_gz}, {xes}, {root_xes_gz}, {root_xes}"
             )
+    _v(f"[uncertain-intrinsic] using XES file: {path}")
     return read_uncertain_xes(path)
 
 
@@ -120,10 +137,12 @@ def evaluate_intrinsic_uncertain(
         log_u5 = _cap_log_top5(log_u, na_label=na_label)
         stats5 = uncertainty_stats(log_u5, na_label=na_label)
         _safe_progress(f"[uncertain-intrinsic] base top-5 stats: {stats5}")
+        _v(f"[uncertain-intrinsic] uncertainty levels u={UNCERTAINTY_LEVELS} (top-u per event, renorm)")
 
         # Choose replaceable activities (exclude NA)
         alphabet = activities_in_uncertain_log(log_u5, exclude={na_label})
         r = min(r_min, len(alphabet))
+        _v(f"[uncertain-intrinsic] |A| (excluding NA) = {len(alphabet)} ; r_min={r_min} -> r_max={r}")
 
         # Subproblems (same structure as deterministic evaluation)
         combinations = [
@@ -145,6 +164,7 @@ def evaluate_intrinsic_uncertain(
         # Match deterministic core usage pattern
         total_cores = multiprocessing.cpu_count()
         cores_to_use = max(1, int(total_cores * 0.8))
+        _v(f"[uncertain-intrinsic] subproblems={len(combinations)} cores_to_use={cores_to_use} mp={0}")
         mp = 0
         if mp == 1:
             with Pool(processes=cores_to_use) as pool:
@@ -172,16 +192,26 @@ def intrinsic_evaluation_uncertain(args):
     # Ground truth log cache path mirrors deterministic naming.
     logs_with_replaced_activities_dict = None
     if load_logs:
+        _v(
+            f"[uncertain-intrinsic] GT load attempt: log={log_name} r={different_activities_to_replace_count} "
+            f"w={activities_to_replace_with_count} s={sampling_size}"
+        )
         logs_with_replaced_activities_dict = load_uncertain_ground_truth_logs(
             log_name,
             different_activities_to_replace_count=different_activities_to_replace_count,
             activities_to_replace_with_count=activities_to_replace_with_count,
             sampling_size=sampling_size,
         )
+        if logs_with_replaced_activities_dict is not None:
+            _v(f"[uncertain-intrinsic] GT cache hit: runs={len(logs_with_replaced_activities_dict)}")
 
     if logs_with_replaced_activities_dict is None:
         activities_to_replace_in_each_run_list = get_activities_to_replace(
             alphabet, different_activities_to_replace_count, sampling_size
+        )
+        _v(
+            f"[uncertain-intrinsic] GT generating: runs={len(activities_to_replace_in_each_run_list)} "
+            f"(showing up to {VERBOSE_MAX_EXAMPLES}): {activities_to_replace_in_each_run_list[:VERBOSE_MAX_EXAMPLES]}"
         )
         logs_with_replaced_activities_dict = get_uncertain_logs_with_replaced_activities_dict(
             activities_to_replace_in_each_run_list,
@@ -190,15 +220,20 @@ def intrinsic_evaluation_uncertain(args):
             activities_to_replace_with_count=activities_to_replace_with_count,
             na_label=na_label,
         )
-        save_uncertain_ground_truth_logs(
+        gt_path = save_uncertain_ground_truth_logs(
             log_name,
             different_activities_to_replace_count=different_activities_to_replace_count,
             activities_to_replace_with_count=activities_to_replace_with_count,
             sampling_size=sampling_size,
             logs_with_replaced_activities_dict=logs_with_replaced_activities_dict,
         )
+        _v(f"[uncertain-intrinsic] GT saved: {gt_path}")
     else:
         activities_to_replace_in_each_run_list = [key for key in logs_with_replaced_activities_dict.keys()]
+        _v(
+            f"[uncertain-intrinsic] GT loaded: runs={len(activities_to_replace_in_each_run_list)} "
+            f"(showing up to {VERBOSE_MAX_EXAMPLES}): {activities_to_replace_in_each_run_list[:VERBOSE_MAX_EXAMPLES]}"
+        )
 
     _safe_progress(
         f"[uncertain-intrinsic] start r={different_activities_to_replace_count} w={activities_to_replace_with_count}"
@@ -210,6 +245,7 @@ def intrinsic_evaluation_uncertain(args):
 
     for activity_distance_function in activity_distance_function_list:
         method_results_by_u = []
+        _v(f"[uncertain-intrinsic] method: {activity_distance_function}")
 
         for u in UNCERTAINTY_LEVELS:
             # Cache check
@@ -224,6 +260,10 @@ def intrinsic_evaluation_uncertain(args):
                     uncertainty_level=u,
                 )
             if cached is not None:
+                _v(
+                    f"[uncertain-intrinsic] cache hit: method={activity_distance_function} "
+                    f"r={different_activities_to_replace_count} w={activities_to_replace_with_count} u={u}"
+                )
                 method_results_by_u.append(cached)
                 continue
 
@@ -233,12 +273,15 @@ def intrinsic_evaluation_uncertain(args):
             precision_at_1_list = []
             triplet_list = []
             entropy_list = []
+            t_u0 = time.time()
+            _v(f"[uncertain-intrinsic] evaluating u={u} for method={activity_distance_function} ...")
 
             for activities_to_replace in activities_to_replace_in_each_run_list:
                 # take the base top-5 ground truth log and derive level-u by truncation
                 gt_u5 = logs_with_replaced_activities_dict[activities_to_replace]
                 gt_u = apply_uncertainty_level(gt_u5, k=u, na_label=na_label)
-                entropy_list.append(uncertainty_stats(gt_u, na_label=na_label)["avg_norm_entropy"])
+                stats_u = uncertainty_stats(gt_u, na_label=na_label)
+                entropy_list.append(stats_u["avg_norm_entropy"])
 
                 # Alphabet for intrinsic metrics (exclude NA)
                 alphabet_u = activities_in_uncertain_log(gt_u, exclude={na_label})
@@ -246,12 +289,19 @@ def intrinsic_evaluation_uncertain(args):
                 logs_for_run = {activities_to_replace: gt_u}
 
                 # Compute distances between activities for this method and this ground truth log
+                t_dist0 = time.time()
                 activity_distance_matrix_dict = get_uncertain_activity_distance_matrix_dict(
                     [activity_distance_function],
                     logs_for_run,
                     na_label=na_label,
-                    progress=None,
+                    progress=_safe_progress if VERBOSE and "act2vec" in activity_distance_function else None,
                 )
+                t_dist = time.time() - t_dist0
+                if VERBOSE:
+                    _v(
+                        f"[uncertain-intrinsic] u={u} run activities_to_replace={activities_to_replace} "
+                        f"stats={stats_u} |A_u|={len(alphabet_u)} dist_time={t_dist:.2f}s"
+                    )
 
                 reverse = False  # smaller distance = more similar (cosine distance)
 
@@ -300,7 +350,7 @@ def intrinsic_evaluation_uncertain(args):
                 precision_at_1,
                 triplet,
             )
-            save_uncertain_result(
+            res_path = save_uncertain_result(
                 results,
                 log_name=log_name,
                 activity_distance_function=activity_distance_function,
@@ -308,6 +358,11 @@ def intrinsic_evaluation_uncertain(args):
                 activities_to_replace_with_count=activities_to_replace_with_count,
                 sampling_size=sampling_size,
                 uncertainty_level=u,
+            )
+            _v(
+                f"[uncertain-intrinsic] saved result: u={u} method={activity_distance_function} "
+                f"avg_entropy={avg_entropy:.3f} diameter={diameter:.3f} prec@w-1={precision_at_w_minus_1:.3f} "
+                f"prec@1={precision_at_1:.3f} triplet={triplet:.3f} time_u={time.time()-t_u0:.2f}s -> {res_path}"
             )
             method_results_by_u.append(results)
 
@@ -420,12 +475,15 @@ if __name__ == "__main__":
     # Logs to evaluate (file names in uncertain_event_logs/)
     # ==============================================================================
     log_list = []
-    # Example (adjust to your dataset):
-    # log_list.append("xes_uncertain_gt__no_na")  # if you place it under uncertain_event_logs/ as .xes
-    # In practice you will add your real uncertain logs here.
-    raise SystemExit(
-        "Please edit `log_list` to include uncertain log base names found in `uncertain_event_logs/`."
-    )
+    log_list.append("ikea_asm__clip_based__c3d_and_p3d__p3d__pretrained__rgb__dev3__xes_uncertain_gt__no_na")
+    # Add your real uncertain logs here (base name without extension).
+    # Example:
+    # log_list.append("xes_uncertain_gt__no_na")
+
+    if not log_list:
+        raise SystemExit(
+            "Please edit `log_list` to include uncertain log base names found in `uncertain_event_logs/`."
+        )
 
     evaluate_intrinsic_uncertain(
         activity_distance_functions,
