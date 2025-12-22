@@ -36,6 +36,48 @@ from evaluation.data_util.uncertain_evaluation_helpers import extract_window_siz
 from uncertain_utils.uncertain_xes_reader import UncertainEventLog
 
 
+_COUNTS_CACHE: dict[tuple[int, int, str], tuple[dict, dict, dict]] = {}
+
+def _pick_torch_device() -> str:
+    """
+    Pick the best available PyTorch device for act2vec training/inference.
+
+    Priority:
+    - "cuda" if CUDA is available
+    - "mps" if Apple Metal (MPS) is available (macOS)
+    - "cpu" otherwise
+    """
+    try:
+        import torch  # local import: only needed for act2vec
+    except Exception:
+        return "cpu"
+
+    try:
+        if getattr(torch, "cuda", None) is not None and torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+
+    try:
+        mps = getattr(torch.backends, "mps", None)
+        if mps is not None and getattr(mps, "is_available", None) and mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+
+    return "cpu"
+
+
+def clear_counts_cache() -> None:
+    """
+    Clear cached window-based expected counts.
+
+    Use this between uncertainty levels `u` to keep memory bounded while still
+    avoiding recomputation within the same `u` (where many methods share the same counts).
+    """
+    _COUNTS_CACHE.clear()
+
+
 def _strip_window_suffix(method: str) -> str:
     # deterministic code appends " w_3" etc; keep the base name here
     if " w_" in method:
@@ -61,6 +103,7 @@ def get_uncertain_activity_distance_matrix_one_method(
     # ---------------------------------------------------------------------
     if method_name in ("Uncertain act2vec CBOW", "Uncertain act2vec Skip-gram"):
         sg = 0 if method_name.endswith("CBOW") else 1
+        device = _pick_torch_device()
         cfg = UncertainAct2VecConfig(
             window_size=window_size,
             embedding_dim=16,
@@ -70,7 +113,7 @@ def get_uncertain_activity_distance_matrix_one_method(
             alpha_decay_per_epoch=0.002,
             min_alpha=0.0001,
             seed=0,
-            device="cpu",
+            device=device,
             training_mode="window_realizations",
             prob_threshold=0.0,
             na_label=na_label,
@@ -80,6 +123,8 @@ def get_uncertain_activity_distance_matrix_one_method(
             progress_every_samples=50_000,
         )
         dist, emb, dbg = get_uncertain_act2vec_distance_matrix(log, sg=sg, config=cfg, progress=progress)
+        if isinstance(dbg, dict):
+            dbg.setdefault("device", device)
         return dist, dbg
 
     # ---------------------------------------------------------------------
@@ -97,14 +142,20 @@ def get_uncertain_activity_distance_matrix_one_method(
     elif method_name.endswith(" PMI"):
         post = "pmi"
 
-    expected_counts_by_w, ctx_freq_by_w, act_freq = compute_expected_counts_window_based_multiwindow(
-        log,
-        window_sizes=[window_size],
-        context_kind=context_kind,
-        na_label=na_label,
-        prob_threshold=0.0,  # exact (event distributions already capped upstream)
-        progress=progress,
-    )
+    cache_key = (id(log), window_size, context_kind)
+    cached = _COUNTS_CACHE.get(cache_key)
+    if cached is None:
+        expected_counts_by_w, ctx_freq_by_w, act_freq = compute_expected_counts_window_based_multiwindow(
+            log,
+            window_sizes=[window_size],
+            context_kind=context_kind,
+            na_label=na_label,
+            prob_threshold=0.0,  # exact (event distributions already capped upstream)
+            progress=progress,
+        )
+        _COUNTS_CACHE[cache_key] = (expected_counts_by_w, ctx_freq_by_w, act_freq)
+    else:
+        expected_counts_by_w, ctx_freq_by_w, act_freq = cached
     counts = expected_counts_by_w[window_size]  # activity -> context -> expected count
 
     if matrix_type == "AC":
