@@ -65,11 +65,18 @@ from evaluation.data_util.util_activity_distances_intrinsic_uncertain import (
     get_uncertain_logs_with_replaced_activities_dict,
 )
 from evaluation.data_util.util_activity_distances_uncertain_intrinsic import get_uncertain_activity_distance_matrix_dict
+from evaluation.data_util.util_activity_distances_uncertain_intrinsic import clear_counts_cache
 from uncertain_utils.uncertain_xes_reader import read_uncertain_xes, UncertainEventLog
 
 
 UNCERTAINTY_LEVELS = [1, 2, 3, 4, 5]
 BASE_TOPK = 5
+
+# Parallelism (speed)
+# - On macOS/Linux, use 'fork' to avoid pickling the whole uncertain log into workers.
+# - On Windows, multiprocessing uses 'spawn' and may be slower; set MP=0 there.
+MP_START_METHOD = "fork" if sys.platform != "win32" else "spawn"
+MP = 1 if MP_START_METHOD == "fork" else 0
 
 # Debug / progress verbosity
 VERBOSE = True
@@ -164,10 +171,10 @@ def evaluate_intrinsic_uncertain(
         # Match deterministic core usage pattern
         total_cores = multiprocessing.cpu_count()
         cores_to_use = max(1, int(total_cores * 0.8))
-        _v(f"[uncertain-intrinsic] subproblems={len(combinations)} cores_to_use={cores_to_use} mp={0}")
-        mp = 0
-        if mp == 1:
-            with Pool(processes=cores_to_use) as pool:
+        _v(f"[uncertain-intrinsic] subproblems={len(combinations)} cores_to_use={cores_to_use} mp={MP} start={MP_START_METHOD}")
+        if MP == 1:
+            ctx = multiprocessing.get_context(MP_START_METHOD)
+            with ctx.Pool(processes=cores_to_use) as pool:
                 results = pool.map(intrinsic_evaluation_uncertain, combinations)
         else:
             results = [intrinsic_evaluation_uncertain(c) for c in combinations]
@@ -239,16 +246,26 @@ def intrinsic_evaluation_uncertain(args):
         f"[uncertain-intrinsic] start r={different_activities_to_replace_count} w={activities_to_replace_with_count}"
     )
 
-    # Results are returned as a list (one entry per method in activity_distance_function_list),
-    # matching deterministic script structure. Each entry itself is a list over uncertainty levels.
-    results_per_method = []
+    # Results: list (one entry per method), each entry is list over u, matching deterministic structure.
+    results_per_method: list[list[tuple]] = [[] for _ in activity_distance_function_list]
 
-    for activity_distance_function in activity_distance_function_list:
-        method_results_by_u = []
-        _v(f"[uncertain-intrinsic] method: {activity_distance_function}")
+    # Precompute uncertainty-level logs once per u (shared across methods) to avoid repeated truncation work.
+    for u in UNCERTAINTY_LEVELS:
+        clear_counts_cache()
+        _v(f"[uncertain-intrinsic] precomputing logs for u={u} ...")
+        gt_u_by_run = {}
+        stats_u_by_run = {}
+        alphabet_u_by_run = {}
+        for activities_to_replace in activities_to_replace_in_each_run_list:
+            gt_u5 = logs_with_replaced_activities_dict[activities_to_replace]
+            gt_u = apply_uncertainty_level(gt_u5, k=u, na_label=na_label)
+            gt_u_by_run[activities_to_replace] = gt_u
+            stats_u_by_run[activities_to_replace] = uncertainty_stats(gt_u, na_label=na_label)
+            alphabet_u_by_run[activities_to_replace] = activities_in_uncertain_log(gt_u, exclude={na_label})
 
-        for u in UNCERTAINTY_LEVELS:
-            # Cache check
+        for m_idx, activity_distance_function in enumerate(activity_distance_function_list):
+            _v(f"[uncertain-intrinsic] method: {activity_distance_function}")
+
             cached = None
             if load_logs:
                 cached = load_uncertain_result(
@@ -264,10 +281,9 @@ def intrinsic_evaluation_uncertain(args):
                     f"[uncertain-intrinsic] cache hit: method={activity_distance_function} "
                     f"r={different_activities_to_replace_count} w={activities_to_replace_with_count} u={u}"
                 )
-                method_results_by_u.append(cached)
+                results_per_method[m_idx].append(cached)
                 continue
 
-            # Evaluate this method at uncertainty level u
             diameter_list = []
             precision_at_w_minus_1_list = []
             precision_at_1_list = []
@@ -277,18 +293,12 @@ def intrinsic_evaluation_uncertain(args):
             _v(f"[uncertain-intrinsic] evaluating u={u} for method={activity_distance_function} ...")
 
             for activities_to_replace in activities_to_replace_in_each_run_list:
-                # take the base top-5 ground truth log and derive level-u by truncation
-                gt_u5 = logs_with_replaced_activities_dict[activities_to_replace]
-                gt_u = apply_uncertainty_level(gt_u5, k=u, na_label=na_label)
-                stats_u = uncertainty_stats(gt_u, na_label=na_label)
+                gt_u = gt_u_by_run[activities_to_replace]
+                stats_u = stats_u_by_run[activities_to_replace]
+                alphabet_u = alphabet_u_by_run[activities_to_replace]
                 entropy_list.append(stats_u["avg_norm_entropy"])
 
-                # Alphabet for intrinsic metrics (exclude NA)
-                alphabet_u = activities_in_uncertain_log(gt_u, exclude={na_label})
-
                 logs_for_run = {activities_to_replace: gt_u}
-
-                # Compute distances between activities for this method and this ground truth log
                 t_dist0 = time.time()
                 activity_distance_matrix_dict = get_uncertain_activity_distance_matrix_dict(
                     [activity_distance_function],
@@ -297,22 +307,13 @@ def intrinsic_evaluation_uncertain(args):
                     progress=_safe_progress if VERBOSE and "act2vec" in activity_distance_function else None,
                 )
                 t_dist = time.time() - t_dist0
-                if VERBOSE:
-                    _v(
-                        f"[uncertain-intrinsic] u={u} run activities_to_replace={activities_to_replace} "
-                        f"stats={stats_u} |A_u|={len(alphabet_u)} dist_time={t_dist:.2f}s"
-                    )
-
-                reverse = False  # smaller distance = more similar (cosine distance)
-
-                diameter_list.append(
-                    get_diameter(
-                        activity_distance_matrix_dict,
-                        activities_to_replace_with_count,
-                        reverse,
-                        alphabet_u,
-                    )
+                _v(
+                    f"[uncertain-intrinsic] u={u} run activities_to_replace={activities_to_replace} "
+                    f"stats={stats_u} |A_u|={len(alphabet_u)} dist_time={t_dist:.2f}s"
                 )
+
+                reverse = False
+                diameter_list.append(get_diameter(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet_u))
 
                 w_minus_one_nn_dict = get_knn_dict(
                     activity_distance_matrix_dict, activities_to_replace_with_count, reverse, activities_to_replace_with_count - 1
@@ -324,16 +325,8 @@ def intrinsic_evaluation_uncertain(args):
                 precision_at_1_dict = get_precision_at_k(one_nn_dict, [activity_distance_function])
                 precision_at_1_list.append(precision_at_1_dict[activity_distance_function])
 
-                triplet_list.append(
-                    get_triplet(
-                        activity_distance_matrix_dict,
-                        activities_to_replace_with_count,
-                        reverse,
-                        alphabet_u,
-                    )
-                )
+                triplet_list.append(get_triplet(activity_distance_matrix_dict, activities_to_replace_with_count, reverse, alphabet_u))
 
-            # Aggregate over runs
             diameter = sum(diameter_list) / len(diameter_list)
             precision_at_w_minus_1 = sum(precision_at_w_minus_1_list) / len(precision_at_w_minus_1_list)
             precision_at_1 = sum(precision_at_1_list) / len(precision_at_1_list)
@@ -364,9 +357,7 @@ def intrinsic_evaluation_uncertain(args):
                 f"avg_entropy={avg_entropy:.3f} diameter={diameter:.3f} prec@w-1={precision_at_w_minus_1:.3f} "
                 f"prec@1={precision_at_1:.3f} triplet={triplet:.3f} time_u={time.time()-t_u0:.2f}s -> {res_path}"
             )
-            method_results_by_u.append(results)
-
-        results_per_method.append(method_results_by_u)
+            results_per_method[m_idx].append(results)
 
     _safe_progress(
         f"[uncertain-intrinsic] end r={different_activities_to_replace_count} w={activities_to_replace_with_count} s={sampling_size}"
@@ -432,6 +423,11 @@ def save_intrinsic_results_uncertain(activity_distance_functions, results, log_n
 
 
 if __name__ == "__main__":
+    try:
+        multiprocessing.set_start_method(MP_START_METHOD, force=True)
+    except Exception:
+        # If start method cannot be set (already set), continue.
+        pass
     # ==============================================================================
     # Similarity Methods to Evaluate (uncertain)
     # ==============================================================================
