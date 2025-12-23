@@ -45,9 +45,9 @@ REPETITIONS = 3
 
 NA_LABEL = "NA"
 
-# Optional pruning (set to None/0.0 for exact, but slower)
-TOP_K = None
-MIN_PROB = 0.0
+# Intrinsic-benchmark semantics for runtime evaluation:
+# apply top-u truncation per event *with renormalization* before running methods.
+UNCERTAINTY_LEVEL_U = 3
 
 # Optional debugging: only read the first N traces
 LIMIT_TRACES = None
@@ -66,8 +66,7 @@ if __name__ == "__main__":
         LOG_LIST,
         REPETITIONS,
         na_label=NA_LABEL,
-        top_k=TOP_K,
-        min_prob=MIN_PROB,
+        uncertainty_level_u=UNCERTAINTY_LEVEL_U,
         limit_traces=LIMIT_TRACES,
     )
 

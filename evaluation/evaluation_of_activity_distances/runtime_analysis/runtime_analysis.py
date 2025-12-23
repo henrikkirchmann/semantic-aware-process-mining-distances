@@ -18,6 +18,7 @@ from definitions import ROOT_DIR
 # Uncertain runtime evaluation imports (kept TensorFlow-free)
 from uncertain_utils.uncertain_xes_reader import read_uncertain_xes
 from evaluation.data_util.uncertain_evaluation_helpers import add_window_size_evaluation
+from evaluation.data_util.util_activity_distances_intrinsic_uncertain import apply_uncertainty_level
 from evaluation.data_util.util_activity_distances_uncertain import (
     UNCERTAIN_COUNT_BASED_METHODS,
     UNCERTAIN_NEURAL_METHODS,
@@ -280,8 +281,9 @@ def evaluate_runtime_uncertain(
     number_of_repetitions,
     *,
     na_label: str = "NA",
-    top_k: int | None = None,
-    min_prob: float = 0.0,
+    # NOTE: For the runtime benchmark we match the intrinsic benchmark semantics:
+    # apply top-u per event + renormalize *before* running the methods.
+    uncertainty_level_u: int = 3,
     limit_traces: int | None = None,
     inner_progress_every: int = 200_000,
     verbose: bool = True,
@@ -301,13 +303,14 @@ def evaluate_runtime_uncertain(
         if not path.exists():
             raise FileNotFoundError(f"Uncertain log not found: {path}")
 
-        log_u = read_uncertain_xes(str(path), limit_traces=limit_traces)
+        log_u_raw = read_uncertain_xes(str(path), limit_traces=limit_traces)
+        log_u = apply_uncertainty_level(log_u_raw, k=int(uncertainty_level_u), na_label=na_label)
         if verbose:
             n_traces = len(log_u.traces)
             n_events = sum(len(tr.events) for tr in log_u.traces)
             _safe_print(
                 f"[runtime:unc] log {log_idx}/{len(log_list)}: {log_name} "
-                f"(traces={n_traces}, events={n_events}, top_k={top_k}, min_prob={min_prob})"
+                f"(traces={n_traces}, events={n_events}, u={int(uncertainty_level_u)})"
             )
 
         for m_idx, activity_distance_function in enumerate(activity_distance_functions, start=1):
@@ -332,8 +335,8 @@ def evaluate_runtime_uncertain(
                     log_u,
                     method_name=method_name,
                     window_size=window_size,
-                    top_k=top_k,
-                    min_prob=min_prob,
+                    top_k=None,
+                    min_prob=0.0,
                     na_label=na_label,
                     progress=_safe_print if verbose else None,
                     progress_every_realizations=int(inner_progress_every),
@@ -349,8 +352,7 @@ def evaluate_runtime_uncertain(
                 "log": log_name,
                 "average_duration": avg_runtime,
                 "mode": "uncertain",
-                "top_k": top_k,
-                "min_prob": min_prob,
+                "u": int(uncertainty_level_u),
                 "limit_traces": limit_traces,
             }
             _safe_print(str(row))
@@ -370,8 +372,12 @@ if __name__ == '__main__':
     ap.add_argument("--repetitions", type=int, default=3, help="Number of repetitions per method/log (default: 3).")
     ap.add_argument("--limit-traces", type=int, default=None, help="Optional: only read the first N traces.")
     ap.add_argument("--na-label", type=str, default="NA", help="NA label for uncertain logs (default: NA).")
-    ap.add_argument("--top-k", type=int, default=None, help="Optional pruning: keep only top-k labels per event.")
-    ap.add_argument("--min-prob", type=float, default=0.0, help="Optional pruning: drop labels with p < min_prob.")
+    ap.add_argument(
+        "--u",
+        type=int,
+        default=3,
+        help="Uncertainty level: keep top-u labels per event and renormalize before running methods (default: 3).",
+    )
     ap.add_argument(
         "--inner-progress-every",
         type=int,
@@ -406,8 +412,7 @@ if __name__ == '__main__':
             log_list,
             number_of_repetitions,
             na_label=str(args.na_label),
-            top_k=(int(args.top_k) if args.top_k is not None else None),
-            min_prob=float(args.min_prob),
+            uncertainty_level_u=int(args.u),
             limit_traces=(int(args.limit_traces) if args.limit_traces is not None else None),
             inner_progress_every=int(args.inner_progress_every),
             verbose=verbose,
