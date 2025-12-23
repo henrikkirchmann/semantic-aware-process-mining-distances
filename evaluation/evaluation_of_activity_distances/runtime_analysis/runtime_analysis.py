@@ -283,6 +283,7 @@ def evaluate_runtime_uncertain(
     top_k: int | None = None,
     min_prob: float = 0.0,
     limit_traces: int | None = None,
+    inner_progress_every: int = 200_000,
     verbose: bool = True,
 ):
     """
@@ -334,6 +335,8 @@ def evaluate_runtime_uncertain(
                     top_k=top_k,
                     min_prob=min_prob,
                     na_label=na_label,
+                    progress=_safe_print if verbose else None,
+                    progress_every_realizations=int(inner_progress_every),
                 )
                 dt = time.time() - start_time
                 runtimes.append(dt)
@@ -369,6 +372,12 @@ if __name__ == '__main__':
     ap.add_argument("--na-label", type=str, default="NA", help="NA label for uncertain logs (default: NA).")
     ap.add_argument("--top-k", type=int, default=None, help="Optional pruning: keep only top-k labels per event.")
     ap.add_argument("--min-prob", type=float, default=0.0, help="Optional pruning: drop labels with p < min_prob.")
+    ap.add_argument(
+        "--inner-progress-every",
+        type=int,
+        default=200_000,
+        help="For uncertain methods: print inner progress every N window realizations (default: 200000).",
+    )
     ap.add_argument("--quiet", action="store_true", help="Disable progress printing.")
     args = ap.parse_args()
 
@@ -400,6 +409,7 @@ if __name__ == '__main__':
             top_k=(int(args.top_k) if args.top_k is not None else None),
             min_prob=float(args.min_prob),
             limit_traces=(int(args.limit_traces) if args.limit_traces is not None else None),
+            inner_progress_every=int(args.inner_progress_every),
             verbose=verbose,
         )
 
