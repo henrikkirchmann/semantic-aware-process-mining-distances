@@ -22,7 +22,10 @@ from evaluation.data_util.util_activity_distances_intrinsic_uncertain import app
 from evaluation.data_util.util_activity_distances_uncertain import (
     UNCERTAIN_COUNT_BASED_METHODS,
     UNCERTAIN_NEURAL_METHODS,
-    get_uncertain_activity_distance_matrix,
+)
+from evaluation.data_util.util_activity_distances_uncertain_intrinsic import (
+    clear_counts_cache,
+    get_uncertain_activity_distance_matrix_one_method,
 )
 
 
@@ -331,15 +334,17 @@ def evaluate_runtime_uncertain(
                 start_time = time.time()
                 if verbose:
                     _safe_print(f"[runtime:unc]    rep {rep}/{number_of_repetitions} start ...")
-                _dist, _dbg = get_uncertain_activity_distance_matrix(
+                # Important: use the SAME computation path as the uncertain intrinsic benchmark:
+                # - window-based expected counts (not full trace-realization enumeration)
+                # - act2vec auto-selects the best available torch device (cuda/mps/cpu)
+                #
+                # Also clear the shared counts cache so each (log, method, rep) measures a full run.
+                clear_counts_cache()
+                _dist, _dbg = get_uncertain_activity_distance_matrix_one_method(
                     log_u,
-                    method_name=method_name,
-                    window_size=window_size,
-                    top_k=None,
-                    min_prob=0.0,
+                    method_name_with_window=activity_distance_function,
                     na_label=na_label,
                     progress=_safe_print if verbose else None,
-                    progress_every_realizations=int(inner_progress_every),
                 )
                 dt = time.time() - start_time
                 runtimes.append(dt)
