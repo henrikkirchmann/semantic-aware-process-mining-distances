@@ -1,48 +1,74 @@
-import time
-import pandas as pd
-from pm4py.objects.log.importer.xes import importer as xes_importer
-from definitions import ROOT_DIR
-from evaluation.data_util.util_activity_distances import (
-    get_alphabet,
-    get_unit_cost_activity_distance_matrix
-)
-from evaluation.data_util.util_activity_distances_intrinsic import get_log_control_flow_perspective
-from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import (
-    get_substitution_and_insertion_scores
-)
-from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import (
-    get_embedding_process_structure_distance_matrix
-)
-import gc
-import math
-import os
-import shutil
-import sys
-from collections import defaultdict
-from typing import List
+from __future__ import annotations
+
+import argparse
 import re
-import psutil
-import numpy as np
+import sys
+import time
+from pathlib import Path
+
+import pandas as pd
+
+# Ensure repo root is importable when running this file directly by path (IDE / python -u ...)
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from definitions import ROOT_DIR
-from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import \
-    get_activity_activity_co_occurence_matrix
-from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import \
-    get_substitution_and_insertion_scores
-from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import \
-    get_embedding_process_structure_distance_matrix
-from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
-from distances.activity_distances.de_koninck_2018_act2vec.our_hyperparas import get_act2vec_distance_matrix_our
-from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import \
-    get_context_based_distance_matrix
-from distances.activity_distances.activity_context_frequency.activity_contex_frequency import \
-    get_activity_context_frequency_matrix
-from distances.activity_distances.pmi.pmi import get_activity_context_frequency_matrix_pmi, \
-    get_activity_activity_frequency_matrix_pmi
-from evaluation.data_util.util_activity_distances import extract_window_size
+
+# Uncertain runtime evaluation imports (kept TensorFlow-free)
+from uncertain_utils.uncertain_xes_reader import read_uncertain_xes
+from evaluation.data_util.uncertain_evaluation_helpers import add_window_size_evaluation
+from evaluation.data_util.util_activity_distances_uncertain import (
+    UNCERTAIN_COUNT_BASED_METHODS,
+    UNCERTAIN_NEURAL_METHODS,
+    get_uncertain_activity_distance_matrix,
+)
+
+
+def extract_window_size(s: str) -> int:
+    """
+    Extract window size from method strings like "... w_3".
+    Local copy to avoid importing deterministic utilities (which pull in heavy deps in some environments).
+    """
+    m = re.search(r"w_(\d+)", s)
+    return int(m.group(1)) if m else 3
 
 
 def evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions):
+    """
+    Deterministic runtime evaluation (legacy).
+
+    Note: heavy imports are done lazily inside this function so that uncertain mode can run without
+    optional dependencies like TensorFlow.
+    """
+    # Deterministic runtime evaluation imports (legacy; can pull optional deps)
+    from pm4py.objects.log.importer.xes import importer as xes_importer
+    from evaluation.data_util.util_activity_distances import (
+        get_alphabet,
+        get_unit_cost_activity_distance_matrix,
+    )
+    from evaluation.data_util.util_activity_distances_intrinsic import get_log_control_flow_perspective
+    from distances.activity_distances.bose_2009_context_aware_trace_clustering.algorithm import (
+        get_substitution_and_insertion_scores,
+    )
+    from distances.activity_distances.de_koninck_2018_act2vec.algorithm import get_act2vec_distance_matrix
+    from distances.activity_distances.chiorrini_2022_embedding_process_structure.embedding_process_structure import (
+        get_embedding_process_structure_distance_matrix,
+    )
+    from distances.activity_distances.gamallo_fernandez_2023_context_based_representations.src.embeddings_generator.main_new import (
+        get_context_based_distance_matrix,
+    )
+    from distances.activity_distances.activity_activity_co_occurence.activity_activity_co_occurrence import (
+        get_activity_activity_co_occurence_matrix,
+    )
+    from distances.activity_distances.activity_context_frequency.activity_contex_frequency import (
+        get_activity_context_frequency_matrix,
+    )
+    from distances.activity_distances.pmi.pmi import (
+        get_activity_activity_frequency_matrix_pmi,
+        get_activity_context_frequency_matrix_pmi,
+    )
+
     results = []
 
     for log_name in log_list:
@@ -232,51 +258,144 @@ def evaluate_runtime(activity_distance_functions, log_list, number_of_repetition
     return results
 
 
+def evaluate_runtime_uncertain(
+    activity_distance_functions,
+    log_list,
+    number_of_repetitions,
+    *,
+    na_label: str = "NA",
+    top_k: int | None = None,
+    min_prob: float = 0.0,
+    limit_traces: int | None = None,
+):
+    """
+    Runtime evaluation for *uncertain* event logs.
+
+    - Reads XES from `<ROOT_DIR>/uncertain_event_logs/<log_name>.xes` (or .xes.gz if present)
+    - Uses `get_uncertain_activity_distance_matrix(...)` for the method runtime.
+    """
+    results = []
+
+    for log_name in log_list:
+        xes = Path(ROOT_DIR) / "uncertain_event_logs" / f"{log_name}.xes"
+        xes_gz = Path(ROOT_DIR) / "uncertain_event_logs" / f"{log_name}.xes.gz"
+        path = xes_gz if xes_gz.exists() else xes
+        if not path.exists():
+            raise FileNotFoundError(f"Uncertain log not found: {path}")
+
+        log_u = read_uncertain_xes(str(path), limit_traces=limit_traces)
+
+        for activity_distance_function in activity_distance_functions:
+            runtimes = []
+            for _ in range(number_of_repetitions):
+                window_size = extract_window_size(activity_distance_function)
+                method_name = activity_distance_function.replace(f" w_{window_size}", "")
+
+                start_time = time.time()
+                _dist, _dbg = get_uncertain_activity_distance_matrix(
+                    log_u,
+                    method_name=method_name,
+                    window_size=window_size,
+                    top_k=top_k,
+                    min_prob=min_prob,
+                    na_label=na_label,
+                )
+                runtimes.append(time.time() - start_time)
+
+            avg_runtime = sum(runtimes) / len(runtimes)
+            row = {
+                "activity_function_name": activity_distance_function,
+                "log": log_name,
+                "average_duration": avg_runtime,
+                "mode": "uncertain",
+                "top_k": top_k,
+                "min_prob": min_prob,
+                "limit_traces": limit_traces,
+            }
+            print(row)
+            results.append(row)
+
+    return results
+
+
 if __name__ == '__main__':
-    # Define the activity distance functions to evaluate
-    activity_distance_functions = list()
-    activity_distance_functions.append("Unit Distance")
-    activity_distance_functions.append("Bose 2009 Substitution Scores")
-    activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
-    activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure Discovery")
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--mode",
+        choices=["deterministic", "uncertain"],
+        default="uncertain",
+        help="Which runtime evaluation to run (default: uncertain).",
+    )
+    ap.add_argument("--repetitions", type=int, default=3, help="Number of repetitions per method/log (default: 3).")
+    ap.add_argument("--limit-traces", type=int, default=None, help="Optional: only read the first N traces.")
+    ap.add_argument("--na-label", type=str, default="NA", help="NA label for uncertain logs (default: NA).")
+    ap.add_argument("--top-k", type=int, default=None, help="Optional pruning: keep only top-k labels per event.")
+    ap.add_argument("--min-prob", type=float, default=0.0, help="Optional pruning: drop labels with p < min_prob.")
+    args = ap.parse_args()
 
-    activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PMI")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PPMI")
-    activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PPMI")
-    activity_distance_functions.append("Activity-Context Bag Of Words")
-    activity_distance_functions.append("Activity-Context N-Grams")
-    activity_distance_functions.append("Activity-Context Bag Of Words PMI")
-    activity_distance_functions.append("Activity-Context N-Grams PMI")
-    activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
-    activity_distance_functions.append("Activity-Context N-Grams PPMI")
+    number_of_repetitions = int(args.repetitions)
 
-    from evaluation.data_util.util_activity_distances_intrinsic import add_window_size_evaluation
+    if args.mode == "uncertain":
+        # Uncertain methods (12 count-based + 2 neural), evaluated for window sizes 3/5/9
+        window_size_list = [3, 5, 9]
+        activity_distance_functions = add_window_size_evaluation(
+            list(UNCERTAIN_COUNT_BASED_METHODS) + list(UNCERTAIN_NEURAL_METHODS),
+            window_size_list,
+        )
 
-    window_size_list = [3, 5, 9]
+        # Default logs requested by the user:
+        # - ResNet-18 (RGB, dev3)
+        # - ST-GCN-64 (Pose, dev3)
+        log_list = [
+            "ikea_asm__frame_based__resnet18__pretrained__rgb__dev3__xes_uncertain_pred_merged",
+            "ikea_asm__pose_based__ST_GCN_64__pretrained__pose__dev3__xes_uncertain_pred_merged",
+        ]
 
-    activity_distance_functions = add_window_size_evaluation(activity_distance_functions, window_size_list)
+        print(f"Evaluating UNCERTAIN runtimes with {number_of_repetitions} repetitions...")
+        runtime_results = evaluate_runtime_uncertain(
+            activity_distance_functions,
+            log_list,
+            number_of_repetitions,
+            na_label=str(args.na_label),
+            top_k=(int(args.top_k) if args.top_k is not None else None),
+            min_prob=float(args.min_prob),
+            limit_traces=(int(args.limit_traces) if args.limit_traces is not None else None),
+        )
 
-    activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")
+        csv_filename = f"runtime_results_uncertain_{number_of_repetitions}_repetitions.csv"
+    else:
+        # Deterministic (legacy): keep old behavior
+        activity_distance_functions = []
+        activity_distance_functions.append("Unit Distance")
+        activity_distance_functions.append("Bose 2009 Substitution Scores")
+        activity_distance_functions.append("De Koninck 2018 act2vec CBOW")
+        activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure")
+        activity_distance_functions.append("Chiorrini 2022 Embedding Process Structure Discovery")
+        activity_distance_functions.append("De Koninck 2018 act2vec skip-gram")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PMI")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PMI")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence Bag Of Words PPMI")
+        activity_distance_functions.append("Activity-Activitiy Co Occurrence N-Gram PPMI")
+        activity_distance_functions.append("Activity-Context Bag Of Words")
+        activity_distance_functions.append("Activity-Context N-Grams")
+        activity_distance_functions.append("Activity-Context Bag Of Words PMI")
+        activity_distance_functions.append("Activity-Context N-Grams PMI")
+        activity_distance_functions.append("Activity-Context Bag Of Words PPMI")
+        activity_distance_functions.append("Activity-Context N-Grams PPMI")
 
-    # Define the logs to evaluate
-    log_list = [
-        'Sepsis'
-    ]
+        from evaluation.data_util.util_activity_distances_intrinsic import add_window_size_evaluation as _add_ws_det
+        window_size_list = [3, 5, 9]
+        activity_distance_functions = _add_ws_det(activity_distance_functions, window_size_list)
+        activity_distance_functions.append("Gamallo Fernandez 2023 Context Based w_3")
+        log_list = ["Sepsis"]
 
+        print(f"Evaluating deterministic runtimes with {number_of_repetitions} repetitions...")
+        runtime_results = evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions)
+        csv_filename = f"runtime_results_{number_of_repetitions}_repetitions_gamallo_19.csv"
 
-    number_of_repetitions = 5
-
-    # Evaluate runtimes
-    print(f"Evaluating runtimes with {number_of_repetitions} repetitions...")
-    runtime_results = evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions)
-
-    # Save results to CSV
-    csv_filename = f"runtime_results_{number_of_repetitions}_repetitions_gamallo_19.csv"
+    out_path = Path(ROOT_DIR) / "results" / csv_filename
     df = pd.DataFrame(runtime_results)
-    df.to_csv(ROOT_DIR + '/results/' + csv_filename, index=False)
-    print(f"Results saved to {csv_filename}")
+    df.to_csv(str(out_path), index=False)
+    print(f"Results saved to {out_path}")
