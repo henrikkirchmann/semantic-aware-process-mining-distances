@@ -34,7 +34,14 @@ def extract_window_size(s: str) -> int:
     return int(m.group(1)) if m else 3
 
 
-def evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions):
+def _safe_print(msg: str) -> None:
+    try:
+        print(msg, flush=True)
+    except BrokenPipeError:
+        pass
+
+
+def evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions, *, verbose: bool = True):
     """
     Deterministic runtime evaluation (legacy).
 
@@ -71,16 +78,28 @@ def evaluate_runtime(activity_distance_functions, log_list, number_of_repetition
 
     results = []
 
-    for log_name in log_list:
+    for log_idx, log_name in enumerate(log_list, start=1):
         # Import the event log
         log = xes_importer.apply(ROOT_DIR + '/event_logs/' + log_name + '.xes.gz')
         log_control_flow_perspective = get_log_control_flow_perspective(log)
         alphabet = get_alphabet(log_control_flow_perspective)
+        if verbose:
+            n_traces = len(log_control_flow_perspective)
+            n_events = sum(len(t) for t in log_control_flow_perspective)
+            _safe_print(
+                f"[runtime:det] log {log_idx}/{len(log_list)}: {log_name} "
+                f"(traces={n_traces}, events={n_events}, |A|={len(alphabet)})"
+            )
 
-        for activity_distance_function in activity_distance_functions:
+        for m_idx, activity_distance_function in enumerate(activity_distance_functions, start=1):
             runtimes = []
             for _ in range(number_of_repetitions):
                 window_size = extract_window_size(activity_distance_function)
+                if verbose:
+                    _safe_print(
+                        f"[runtime:det]  method {m_idx}/{len(activity_distance_functions)}: "
+                        f"{activity_distance_function} (w={window_size})"
+                    )
 
                 if activity_distance_function.startswith("Bose 2009 Substitution Scores"):
                     start_time = time.time()
@@ -244,16 +263,13 @@ def evaluate_runtime(activity_distance_functions, log_list, number_of_repetition
 
             # Calculate the average runtime
             avg_runtime = sum(runtimes) / len(runtimes)
-            print({
+            row = {
                 "activity_function_name": activity_distance_function,
                 "log": log_name,
                 "average_duration": avg_runtime
-            })
-            results.append({
-                "activity_function_name": activity_distance_function,
-                "log": log_name,
-                "average_duration": avg_runtime
-            })
+            }
+            _safe_print(str(row))
+            results.append(row)
 
     return results
 
@@ -267,6 +283,7 @@ def evaluate_runtime_uncertain(
     top_k: int | None = None,
     min_prob: float = 0.0,
     limit_traces: int | None = None,
+    verbose: bool = True,
 ):
     """
     Runtime evaluation for *uncertain* event logs.
@@ -276,7 +293,7 @@ def evaluate_runtime_uncertain(
     """
     results = []
 
-    for log_name in log_list:
+    for log_idx, log_name in enumerate(log_list, start=1):
         xes = Path(ROOT_DIR) / "uncertain_event_logs" / f"{log_name}.xes"
         xes_gz = Path(ROOT_DIR) / "uncertain_event_logs" / f"{log_name}.xes.gz"
         path = xes_gz if xes_gz.exists() else xes
@@ -284,14 +301,32 @@ def evaluate_runtime_uncertain(
             raise FileNotFoundError(f"Uncertain log not found: {path}")
 
         log_u = read_uncertain_xes(str(path), limit_traces=limit_traces)
+        if verbose:
+            n_traces = len(log_u.traces)
+            n_events = sum(len(tr.events) for tr in log_u.traces)
+            _safe_print(
+                f"[runtime:unc] log {log_idx}/{len(log_list)}: {log_name} "
+                f"(traces={n_traces}, events={n_events}, top_k={top_k}, min_prob={min_prob})"
+            )
 
-        for activity_distance_function in activity_distance_functions:
+        for m_idx, activity_distance_function in enumerate(activity_distance_functions, start=1):
             runtimes = []
-            for _ in range(number_of_repetitions):
+            window_size = extract_window_size(activity_distance_function)
+            method_name = activity_distance_function.replace(f" w_{window_size}", "")
+
+            if verbose:
+                _safe_print(
+                    f"[runtime:unc]  method {m_idx}/{len(activity_distance_functions)}: "
+                    f"{method_name} (w={window_size})"
+                )
+
+            for rep in range(1, number_of_repetitions + 1):
                 window_size = extract_window_size(activity_distance_function)
                 method_name = activity_distance_function.replace(f" w_{window_size}", "")
 
                 start_time = time.time()
+                if verbose:
+                    _safe_print(f"[runtime:unc]    rep {rep}/{number_of_repetitions} start ...")
                 _dist, _dbg = get_uncertain_activity_distance_matrix(
                     log_u,
                     method_name=method_name,
@@ -300,7 +335,10 @@ def evaluate_runtime_uncertain(
                     min_prob=min_prob,
                     na_label=na_label,
                 )
-                runtimes.append(time.time() - start_time)
+                dt = time.time() - start_time
+                runtimes.append(dt)
+                if verbose:
+                    _safe_print(f"[runtime:unc]    rep {rep}/{number_of_repetitions} done in {dt:.2f}s")
 
             avg_runtime = sum(runtimes) / len(runtimes)
             row = {
@@ -312,7 +350,7 @@ def evaluate_runtime_uncertain(
                 "min_prob": min_prob,
                 "limit_traces": limit_traces,
             }
-            print(row)
+            _safe_print(str(row))
             results.append(row)
 
     return results
@@ -331,9 +369,11 @@ if __name__ == '__main__':
     ap.add_argument("--na-label", type=str, default="NA", help="NA label for uncertain logs (default: NA).")
     ap.add_argument("--top-k", type=int, default=None, help="Optional pruning: keep only top-k labels per event.")
     ap.add_argument("--min-prob", type=float, default=0.0, help="Optional pruning: drop labels with p < min_prob.")
+    ap.add_argument("--quiet", action="store_true", help="Disable progress printing.")
     args = ap.parse_args()
 
     number_of_repetitions = int(args.repetitions)
+    verbose = not bool(args.quiet)
 
     if args.mode == "uncertain":
         # Uncertain methods (12 count-based + 2 neural), evaluated for window sizes 3/5/9
@@ -360,6 +400,7 @@ if __name__ == '__main__':
             top_k=(int(args.top_k) if args.top_k is not None else None),
             min_prob=float(args.min_prob),
             limit_traces=(int(args.limit_traces) if args.limit_traces is not None else None),
+            verbose=verbose,
         )
 
         csv_filename = f"runtime_results_uncertain_{number_of_repetitions}_repetitions.csv"
@@ -392,7 +433,7 @@ if __name__ == '__main__':
         log_list = ["Sepsis"]
 
         print(f"Evaluating deterministic runtimes with {number_of_repetitions} repetitions...")
-        runtime_results = evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions)
+        runtime_results = evaluate_runtime(activity_distance_functions, log_list, number_of_repetitions, verbose=verbose)
         csv_filename = f"runtime_results_{number_of_repetitions}_repetitions_gamallo_19.csv"
 
     out_path = Path(ROOT_DIR) / "results" / csv_filename
