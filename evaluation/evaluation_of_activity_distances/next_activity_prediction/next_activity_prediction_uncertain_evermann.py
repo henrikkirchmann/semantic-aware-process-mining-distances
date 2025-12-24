@@ -593,12 +593,23 @@ def _train_eval_evermann(
     seed: int = 42,
     epochs: int = 50,
     batch_size: int = 64,
+    force_tf_cpu: bool = False,
 ) -> Dict[str, float]:
     """
     Train a single-layer LSTM classifier and return accuracy on test.
     """
     # Local import so the rest of the repo can be used without TF if needed.
     import tensorflow as tf
+
+    if force_tf_cpu:
+        # Disable TF GPU usage without hiding GPUs globally (keeps CUDA visible for PyTorch).
+        try:
+            tf.config.set_visible_devices([], "GPU")
+        except Exception:
+            try:
+                tf.config.experimental.set_visible_devices([], "GPU")
+            except Exception:
+                pass
 
     # Best-effort determinism for repeated runs (still may vary slightly on GPU/MPS).
     try:
@@ -667,6 +678,8 @@ def run_uncertain_next_activity_prediction(
     # Optional override to make the benchmark OS/environment-independent.
     # If set, must be a directory containing `uncertain_event_data/`.
     data_root: Optional[Path] = None,
+    # Useful on clusters with incompatible CUDA/cuDNN: run TF on CPU while still allowing torch to use CUDA.
+    force_tf_cpu: bool = False,
 ) -> Dict[str, object]:
     """
     Run one configuration on IKEA ASM split=test for a single model_id.
@@ -777,6 +790,7 @@ def run_uncertain_next_activity_prediction(
         seed=int(seed),
         epochs=int(epochs),
         batch_size=int(batch_size),
+        force_tf_cpu=bool(force_tf_cpu),
     )
 
     return {
@@ -791,6 +805,7 @@ def run_uncertain_next_activity_prediction(
         "max_len": int(max_len),
         "split_strategy": str(split_strategy),
         "data_root": str(Path(data_root).resolve()) if data_root is not None else str(Path(ROOT_DIR).resolve()),
+        "force_tf_cpu": bool(force_tf_cpu),
         "n_cases": len(cases_all),
         "n_train_cases": len(cases_train),
         "n_val_cases": len(cases_val),

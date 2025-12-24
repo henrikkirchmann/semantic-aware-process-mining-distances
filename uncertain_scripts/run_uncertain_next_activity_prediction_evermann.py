@@ -16,7 +16,6 @@ Benchmark specifics:
 from __future__ import annotations
 
 from pathlib import Path
-import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, List
@@ -207,10 +206,6 @@ def _append_rows_to_csv(rows: List[Dict[str, Any]], out_csv: Path) -> None:
 
 
 if __name__ == "__main__":
-    # Must be set BEFORE TensorFlow is imported (TF is imported lazily inside the benchmark).
-    if TF_DEVICE == "cpu":
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
     existing_keys = _load_existing_keys(OUT_CSV) if (SAVE_RESULTS and RESUME_IF_EXISTS) else set()
 
     rows: List[Dict[str, Any]] = []  # rows computed in this run (for snapshot + printing)
@@ -236,6 +231,7 @@ if __name__ == "__main__":
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
             data_root=DATA_ROOT,
+            force_tf_cpu=(TF_DEVICE == "cpu"),
         )
         # Keep the "grid" config explicit in the output row as well.
         res["grid_embedding_method"] = cfg["embedding_method"]
