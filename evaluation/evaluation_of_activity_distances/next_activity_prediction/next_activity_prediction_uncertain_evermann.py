@@ -508,6 +508,35 @@ def _segment_vector_weighted_onehot(seg: Segment, *, alphabet: List[str], na_lab
     return x
 
 
+def _segment_probs_vector(seg: Segment, *, alphabet: List[str], na_label: str, mode: str) -> np.ndarray:
+    """
+    Return a probability vector over `alphabet` (NA excluded).
+
+    mode:
+      - "weighted": renormalized probabilities
+      - "argmax": one-hot of argmax label (after dropping NA)
+    """
+    d = _drop_na_and_renorm(seg.probs, na_label=na_label)
+    x = np.zeros((len(alphabet),), dtype=np.float32)
+    if not d:
+        return x
+    if mode == "weighted":
+        for a, p in d.items():
+            try:
+                x[alphabet.index(a)] = float(p)
+            except ValueError:
+                continue
+        return x
+    if mode == "argmax":
+        a = max(d.items(), key=lambda kv: kv[1])[0]
+        try:
+            x[alphabet.index(a)] = 1.0
+        except ValueError:
+            pass
+        return x
+    raise ValueError(f"Unknown mode: {mode!r}")
+
+
 def _make_supervised_dataset(
     cases: Dict[int, CaseData],
     *,
@@ -515,38 +544,31 @@ def _make_supervised_dataset(
     na_label: str,
     max_len: int,
     representation: str,
-    embeddings: Optional[Dict[str, np.ndarray]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Create (X, y) for next-activity prediction.
 
-    X: (N, max_len, D)
+    X: (N, max_len, |alphabet|) probability vectors (NA excluded)
     y: (N,) class indices in [0, |alphabet|-1]
     """
     X_list: List[np.ndarray] = []
     y_list: List[int] = []
 
-    # Determine input dimension D
-    if representation == "expected_embedding":
-        if embeddings is None:
-            raise ValueError("embeddings required for expected_embedding representation")
-        D = len(next(iter(embeddings.values()))) if embeddings else 0
-    elif representation in ("argmax_onehot", "weighted_onehot"):
-        D = len(alphabet)
-    else:
+    D = len(alphabet)
+    if representation not in ("expected_embedding", "argmax_onehot", "weighted_onehot"):
         raise ValueError(f"Unknown representation: {representation!r}")
 
     for _cid, case in cases.items():
         segs = case.segments
-        # precompute per-segment vectors for this trace
+        # precompute per-segment probability vectors for this trace
         vecs: List[np.ndarray] = []
         for seg in segs:
-            if representation == "expected_embedding":
-                v = _segment_vector_expected_embedding(seg, emb=embeddings or {}, alphabet=alphabet, na_label=na_label)
-            elif representation == "argmax_onehot":
-                v = _segment_vector_argmax_onehot(seg, alphabet=alphabet, na_label=na_label)
+            if representation == "argmax_onehot":
+                v = _segment_probs_vector(seg, alphabet=alphabet, na_label=na_label, mode="argmax")
             else:
-                v = _segment_vector_weighted_onehot(seg, alphabet=alphabet, na_label=na_label)
+                # expected_embedding uses the same probability input; the expected embedding is computed
+                # inside the model via a frozen embedding matrix.
+                v = _segment_probs_vector(seg, alphabet=alphabet, na_label=na_label, mode="weighted")
             vecs.append(v)
 
         for i, seg in enumerate(segs):
@@ -595,6 +617,7 @@ def _train_eval_evermann(
     epochs: int = 50,
     batch_size: int = 64,
     force_tf_cpu: bool = False,
+    embedding_matrix: Optional[np.ndarray] = None,  # shape (|alphabet|, emb_dim)
 ) -> Dict[str, float]:
     """
     Train a single-layer LSTM classifier and return accuracy on test.
@@ -632,9 +655,21 @@ def _train_eval_evermann(
     np.random.seed(seed)
     random.seed(seed)
 
+    if embedding_matrix is None:
+        raise ValueError("embedding_matrix is required (frozen embedding/projection layer).")
+    E = np.asarray(embedding_matrix, dtype=np.float32)
+
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Input(shape=(X_train.shape[1], X_train.shape[2])),
+            tf.keras.layers.Input(shape=(X_train.shape[1], X_train.shape[2])),  # (T, |A|)
+            # Frozen embedding layer: expected embedding x_t = p_t^T E
+            tf.keras.layers.Dense(
+                units=int(E.shape[1]),
+                use_bias=False,
+                trainable=False,
+                name="frozen_embedding",
+                kernel_initializer=tf.keras.initializers.Constant(E),
+            ),
             tf.keras.layers.Masking(mask_value=0.0),
             tf.keras.layers.LSTM(32, dropout=0.2),
             tf.keras.layers.Dense(num_classes, activation="softmax"),
@@ -738,9 +773,10 @@ def run_uncertain_next_activity_prediction(
                     alphabet_set.add(lab)
     alphabet = sorted(alphabet_set)
 
-    # Embeddings (trained on train+val), only needed for expected_embedding.
-    emb: Optional[Dict[str, np.ndarray]] = None
-    emb_dim = None
+    # Build frozen projection/embedding matrix:
+    # - expected_embedding: pretrained embeddings E (|A| x d), frozen
+    # - baselines: identity projection (|A| x |A|), frozen (keeps one-hot / weighted-one-hot)
+    embedding_matrix: np.ndarray
     if representation == "expected_embedding":
         if embedding_training not in ("top3_uncertain", "top1_determinized"):
             raise ValueError("embedding_training must be 'top3_uncertain' or 'top1_determinized'")
@@ -755,11 +791,20 @@ def run_uncertain_next_activity_prediction(
             window_size=int(window_size),
             na_label=na_label,
         )
-        # ensure all alphabet labels exist (missing -> zeros)
         emb_dim = len(next(iter(emb.values()))) if emb else 0
-        for a in alphabet:
-            if a not in emb:
-                emb[a] = np.zeros((emb_dim,), dtype=np.float32)
+        # Ensure all alphabet labels exist (missing -> zeros)
+        embedding_matrix = np.zeros((len(alphabet), emb_dim), dtype=np.float32)
+        for i, a in enumerate(alphabet):
+            v = emb.get(a)
+            if v is None:
+                continue
+            vv = np.asarray(v, dtype=np.float32).reshape(-1)
+            if vv.shape[0] != emb_dim:
+                continue
+            embedding_matrix[i, :] = vv
+    else:
+        # Identity projection: leaves probability/one-hot vectors unchanged.
+        embedding_matrix = np.eye(len(alphabet), dtype=np.float32)
 
     # Build datasets
     X_train, y_train = _make_supervised_dataset(
@@ -768,7 +813,6 @@ def run_uncertain_next_activity_prediction(
         na_label=na_label,
         max_len=int(max_len),
         representation=representation,
-        embeddings=emb,
     )
     X_val, y_val = _make_supervised_dataset(
         cases_val,
@@ -776,7 +820,6 @@ def run_uncertain_next_activity_prediction(
         na_label=na_label,
         max_len=int(max_len),
         representation=representation,
-        embeddings=emb,
     )
     X_test, y_test = _make_supervised_dataset(
         cases_test,
@@ -784,7 +827,6 @@ def run_uncertain_next_activity_prediction(
         na_label=na_label,
         max_len=int(max_len),
         representation=representation,
-        embeddings=emb,
     )
 
     metrics = _train_eval_evermann(
@@ -799,6 +841,7 @@ def run_uncertain_next_activity_prediction(
         epochs=int(epochs),
         batch_size=int(batch_size),
         force_tf_cpu=bool(force_tf_cpu),
+        embedding_matrix=embedding_matrix,
     )
 
     return {
