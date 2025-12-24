@@ -198,7 +198,19 @@ def load_ikea_split_test_model(
         root = Path(base_dir)
     else:
         root_base = Path(data_root) if data_root is not None else Path(ROOT_DIR)
-        root = root_base / "uncertain_event_data" / "ikea_asm" / "split=test" / f"model={model_id}"
+
+        # Expected layout:
+        #   <root_base>/uncertain_event_data/ikea_asm/...
+        #
+        # Some users may accidentally nest the folder:
+        #   <root_base>/uncertain_event_data/uncertain_event_data/ikea_asm/...
+        #
+        # Auto-detect and handle this gracefully.
+        ued = root_base / "uncertain_event_data"
+        if not (ued / "ikea_asm").exists() and (ued / "uncertain_event_data" / "ikea_asm").exists():
+            ued = ued / "uncertain_event_data"
+
+        root = ued / "ikea_asm" / "split=test" / f"model={model_id}"
     seg_csv = root / "segments_pred.csv"
     frames_csv = root / "frames.csv"
     if not seg_csv.exists():
