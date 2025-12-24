@@ -79,9 +79,12 @@ class Segment:
 @dataclass(frozen=True)
 class CaseData:
     segments: List[Segment]
-    gt_ts: np.ndarray  # int timestamps (ascending)
-    gt_label: List[str]  # same length as gt_ts
-    next_non_na_from_pos: List[Optional[str]]  # length = len(gt_label)+1
+    # Ground-truth can be represented either per-frame (gt_ts + gt_label + lookup),
+    # or as segments (gt_segments) if frames.csv is not available.
+    gt_ts: Optional[np.ndarray]  # int timestamps (ascending), or None
+    gt_label: Optional[List[str]]  # same length as gt_ts, or None
+    next_non_na_from_pos: Optional[List[Optional[str]]]  # length = len(gt_label)+1, or None
+    gt_segments: Optional[List[Tuple[int, int, str]]]  # list of (start_t, end_t, label_name), sorted by start_t
 
 
 # -----------------------------------------------------------------------------
@@ -166,10 +169,42 @@ def _first_non_na_after_end(case: CaseData, *, end_t: int, na_label: str) -> Opt
     """
     Return the first non-NA GT label with timestamp strictly greater than `end_t`.
     """
-    ts = case.gt_ts
+    # Segment-level GT fallback (no per-frame file available)
+    if case.gt_segments is not None:
+        t = int(end_t) + 1  # strictly greater than end_t
+        segs = case.gt_segments
+        if not segs:
+            return None
+
+        starts = [s for (s, _e, _lab) in segs]
+        i = int(np.searchsorted(np.asarray(starts, dtype=np.int64), t, side="right")) - 1
+        if i < 0:
+            i = 0
+
+        # If t lies within current segment, return it if non-NA; otherwise scan forward.
+        s0, e0, lab0 = segs[i]
+        if s0 <= t <= e0:
+            if lab0 != na_label:
+                return lab0
+            j = i + 1
+        else:
+            # t is after seg i ends (or before it starts); next segment is i+1 or the first with start > t
+            j = i + 1
+            while j < len(segs) and segs[j][0] <= t and segs[j][1] < t:
+                j += 1
+
+        while j < len(segs):
+            _s, _e, lab = segs[j]
+            if lab != na_label:
+                return lab
+            j += 1
+        return None
+
+    # Per-frame GT (original path)
+    ts = case.gt_ts if case.gt_ts is not None else np.asarray([], dtype=np.int64)
+    nxt = case.next_non_na_from_pos or []
     # first index with ts > end_t
     j = int(np.searchsorted(ts, int(end_t), side="right"))
-    nxt = case.next_non_na_from_pos
     return nxt[j] if 0 <= j < len(nxt) else None
 
 
@@ -198,25 +233,11 @@ def load_ikea_split_test_model(
         root = Path(base_dir)
     else:
         root_base = Path(data_root) if data_root is not None else Path(ROOT_DIR)
-
-        # Expected layout:
-        #   <root_base>/uncertain_event_data/ikea_asm/...
-        #
-        # Some users may accidentally nest the folder:
-        #   <root_base>/uncertain_event_data/uncertain_event_data/ikea_asm/...
-        #
-        # Auto-detect and handle this gracefully.
-        ued = root_base / "uncertain_event_data"
-        if not (ued / "ikea_asm").exists() and (ued / "uncertain_event_data" / "ikea_asm").exists():
-            ued = ued / "uncertain_event_data"
-
-        root = ued / "ikea_asm" / "split=test" / f"model={model_id}"
+        root = root_base / "uncertain_event_data" / "ikea_asm" / "split=test" / f"model={model_id}"
     seg_csv = root / "segments_pred.csv"
     frames_csv = root / "frames.csv"
     if not seg_csv.exists():
         raise FileNotFoundError(str(seg_csv))
-    if not frames_csv.exists():
-        raise FileNotFoundError(str(frames_csv))
 
     # segments: we need avg_probs_json; file is small enough.
     df_seg = pd.read_csv(seg_csv)
@@ -225,22 +246,36 @@ def load_ikea_split_test_model(
     if missing:
         raise ValueError(f"segments_pred.csv missing columns: {sorted(missing)}")
 
-    # frames: avoid loading probs_json (huge). Only need gt label per timestamp.
-    df_frames = pd.read_csv(
-        frames_csv,
-        usecols=["case_id", "timestamp", "gt_label_name"],
-        dtype={"case_id": "int32", "timestamp": "int32", "gt_label_name": "string"},
-    )
+    # Ground truth: prefer per-frame (frames.csv). If missing (common on Windows due to large file),
+    # fall back to segment-level GT from segments_gt.csv.
+    gt_by_case: Dict[int, Tuple[Optional[np.ndarray], Optional[List[str]], Optional[List[Optional[str]]], Optional[List[Tuple[int, int, str]]]]] = {}
+    if frames_csv.exists():
+        # frames: avoid loading probs_json (huge). Only need gt label per timestamp.
+        df_frames = pd.read_csv(
+            frames_csv,
+            usecols=["case_id", "timestamp", "gt_label_name"],
+            dtype={"case_id": "int32", "timestamp": "int32", "gt_label_name": "string"},
+        )
 
-    # Build GT by case (+ precompute next-non-na lookup)
-    gt_by_case: Dict[int, Tuple[np.ndarray, List[str]]] = {}
-    next_by_case: Dict[int, List[Optional[str]]] = {}
-    for cid, grp in df_frames.groupby("case_id", sort=False):
-        g = grp.sort_values("timestamp", kind="mergesort")
-        ts = g["timestamp"].to_numpy(dtype=np.int32)
-        labs = [str(x) for x in g["gt_label_name"].tolist()]
-        gt_by_case[int(cid)] = (ts, labs)
-        next_by_case[int(cid)] = _build_next_non_na_lookup(ts, labs, na_label=na_label)
+        for cid, grp in df_frames.groupby("case_id", sort=False):
+            g = grp.sort_values("timestamp", kind="mergesort")
+            ts = g["timestamp"].to_numpy(dtype=np.int32)
+            labs = [str(x) for x in g["gt_label_name"].tolist()]
+            nxt = _build_next_non_na_lookup(ts, labs, na_label=na_label)
+            gt_by_case[int(cid)] = (ts, labs, nxt, None)
+    else:
+        seg_gt_csv = root / "segments_gt.csv"
+        if not seg_gt_csv.exists():
+            raise FileNotFoundError(str(frames_csv))
+        df_gt = pd.read_csv(seg_gt_csv)
+        req = {"case_id", "start_timestamp", "end_timestamp", "gt_label_name"}
+        missing_gt = req - set(df_gt.columns)
+        if missing_gt:
+            raise ValueError(f"segments_gt.csv missing columns: {sorted(missing_gt)}")
+        for cid, grp in df_gt.groupby("case_id", sort=False):
+            g = grp.sort_values("start_timestamp", kind="mergesort")
+            segs = [(int(r.start_timestamp), int(r.end_timestamp), str(r.gt_label_name)) for r in g.itertuples(index=False)]
+            gt_by_case[int(cid)] = (None, None, None, segs)
 
     # Build segments by case
     seg_by_case: Dict[int, List[Segment]] = {}
@@ -263,8 +298,14 @@ def load_ikea_split_test_model(
         if cid not in gt_by_case:
             continue
         segs_sorted = sorted(segs, key=lambda s: (s.start_t, s.end_t))
-        ts, labs = gt_by_case[cid]
-        out[int(cid)] = CaseData(segments=segs_sorted, gt_ts=ts, gt_label=labs, next_non_na_from_pos=next_by_case[cid])
+        ts, labs, nxt, segs_gt = gt_by_case[cid]
+        out[int(cid)] = CaseData(
+            segments=segs_sorted,
+            gt_ts=ts,
+            gt_label=labs,
+            next_non_na_from_pos=nxt,
+            gt_segments=segs_gt,
+        )
 
     return out
 
@@ -666,9 +707,14 @@ def run_uncertain_next_activity_prediction(
     # (Keeps the benchmark self-contained and matches IKEA label schema.)
     alphabet_set = set()
     for c in cases_all.values():
-        for lab in c.gt_label:
-            if lab != na_label:
-                alphabet_set.add(lab)
+        if c.gt_label is not None:
+            for lab in c.gt_label:
+                if lab != na_label:
+                    alphabet_set.add(lab)
+        elif c.gt_segments is not None:
+            for (_s, _e, lab) in c.gt_segments:
+                if lab != na_label:
+                    alphabet_set.add(lab)
     alphabet = sorted(alphabet_set)
 
     # Embeddings (trained on train+val), only needed for expected_embedding.
