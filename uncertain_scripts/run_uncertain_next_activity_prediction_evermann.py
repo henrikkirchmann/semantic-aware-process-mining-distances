@@ -57,6 +57,7 @@ DATA_ROOT = REPO_ROOT
 # - "weighted_onehot": baseline (renormalized probabilities, one-hot weights)
 REPRESENTATIONS = [
     "expected_embedding",
+    # "scaled_concat_full",  # full-alphabet concatenation: [p(a1)v(a1) || ... || p(a|A|)v(a|A|)]
     # "argmax_onehot",
     # "weighted_onehot",
 ]

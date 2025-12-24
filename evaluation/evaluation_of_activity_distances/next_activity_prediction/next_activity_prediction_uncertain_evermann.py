@@ -555,7 +555,7 @@ def _make_supervised_dataset(
     y_list: List[int] = []
 
     D = len(alphabet)
-    if representation not in ("expected_embedding", "argmax_onehot", "weighted_onehot"):
+    if representation not in ("expected_embedding", "argmax_onehot", "weighted_onehot", "scaled_concat_full"):
         raise ValueError(f"Unknown representation: {representation!r}")
 
     for _cid, case in cases.items():
@@ -731,6 +731,7 @@ def run_uncertain_next_activity_prediction(
       - "expected_embedding"
       - "argmax_onehot"
       - "weighted_onehot"
+      - "scaled_concat_full"
     """
     # Load cases
     cases_all = load_ikea_split_test_model(
@@ -773,11 +774,12 @@ def run_uncertain_next_activity_prediction(
                     alphabet_set.add(lab)
     alphabet = sorted(alphabet_set)
 
-    # Build frozen projection/embedding matrix:
+    # Build frozen projection/embedding matrix (probability vector -> model input vector):
     # - expected_embedding: pretrained embeddings E (|A| x d), frozen
+    # - scaled_concat_full: block-wise scaled concatenation (|A| x |A|*d), frozen
     # - baselines: identity projection (|A| x |A|), frozen (keeps one-hot / weighted-one-hot)
     embedding_matrix: np.ndarray
-    if representation == "expected_embedding":
+    if representation in ("expected_embedding", "scaled_concat_full"):
         if embedding_training not in ("top3_uncertain", "top1_determinized"):
             raise ValueError("embedding_training must be 'top3_uncertain' or 'top1_determinized'")
         log_train_val = build_uncertain_event_log_from_cases(
@@ -793,7 +795,7 @@ def run_uncertain_next_activity_prediction(
         )
         emb_dim = len(next(iter(emb.values()))) if emb else 0
         # Ensure all alphabet labels exist (missing -> zeros)
-        embedding_matrix = np.zeros((len(alphabet), emb_dim), dtype=np.float32)
+        E = np.zeros((len(alphabet), emb_dim), dtype=np.float32)
         for i, a in enumerate(alphabet):
             v = emb.get(a)
             if v is None:
@@ -801,7 +803,20 @@ def run_uncertain_next_activity_prediction(
             vv = np.asarray(v, dtype=np.float32).reshape(-1)
             if vv.shape[0] != emb_dim:
                 continue
-            embedding_matrix[i, :] = vv
+            E[i, :] = vv
+
+        if representation == "expected_embedding":
+            embedding_matrix = E
+        else:
+            # scaled_concat_full: output is [p(a1)*v(a1) || ... || p(a|A|)*v(a|A|)].
+            # This is a linear map p^T W where W has shape (|A|, |A|*d) and is block-diagonal:
+            # row j maps to block j with weights v(a_j).
+            A = len(alphabet)
+            d = int(emb_dim)
+            W = np.zeros((A, A * d), dtype=np.float32)
+            for j in range(A):
+                W[j, j * d : (j + 1) * d] = E[j, :]
+            embedding_matrix = W
     else:
         # Identity projection: leaves probability/one-hot vectors unchanged.
         embedding_matrix = np.eye(len(alphabet), dtype=np.float32)
