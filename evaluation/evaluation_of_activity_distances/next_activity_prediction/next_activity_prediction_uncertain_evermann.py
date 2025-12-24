@@ -608,6 +608,17 @@ def _train_eval_evermann(
     # Local import so the rest of the repo can be used without TF if needed.
     import tensorflow as tf
 
+    if force_tf_cpu:
+        # Second line of defense: even if TF still enumerates GPUs, make them invisible
+        # before any model/graph is built, so TF won't try to load/initialize cuDNN.
+        try:
+            tf.config.set_visible_devices([], "GPU")
+        except Exception:
+            try:
+                tf.config.experimental.set_visible_devices([], "GPU")
+            except Exception:
+                pass
+
     # Best-effort determinism for repeated runs (still may vary slightly on GPU/MPS).
     try:
         tf.keras.utils.set_random_seed(seed)
