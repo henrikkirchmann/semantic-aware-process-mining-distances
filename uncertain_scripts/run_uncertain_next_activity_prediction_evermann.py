@@ -16,6 +16,7 @@ Benchmark specifics:
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, List
@@ -23,11 +24,6 @@ from typing import Any, Dict, List
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-from evaluation.evaluation_of_activity_distances.next_activity_prediction.next_activity_prediction_uncertain_evermann import (
-    run_uncertain_next_activity_prediction,
-)
-
 
 # =============================================================================
 # Configuration (edit in IDE)
@@ -40,6 +36,15 @@ MODEL_ID = "frame_based__resnet18__pretrained__rgb__dev3"
 # - "auto": let TensorFlow use GPU if available (requires compatible CUDA/cuDNN on the machine)
 # - "cpu": force CPU (useful on clusters with incompatible CUDA/cuDNN runtimes)
 TF_DEVICE = "auto"  # "auto" | "cpu"
+
+# IMPORTANT: if we force CPU, do it BEFORE importing any module that might import TensorFlow.
+# Note: this disables CUDA for the whole process (including PyTorch).
+if TF_DEVICE == "cpu":
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+from evaluation.evaluation_of_activity_distances.next_activity_prediction.next_activity_prediction_uncertain_evermann import (
+    run_uncertain_next_activity_prediction,
+)
 
 # Data root: directory that contains `uncertain_event_data/`.
 # - Default (None) uses the repo root inferred inside the benchmark module.
