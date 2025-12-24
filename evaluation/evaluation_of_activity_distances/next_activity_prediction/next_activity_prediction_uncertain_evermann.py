@@ -181,6 +181,9 @@ def _first_non_na_after_end(case: CaseData, *, end_t: int, na_label: str) -> Opt
 def load_ikea_split_test_model(
     *,
     model_id: str,
+    # If provided, interpret as the repository root (or any directory that contains `uncertain_event_data/`).
+    data_root: Optional[Path] = None,
+    # Backwards-compat override: directly provide the model directory that contains `segments_pred.csv` and `frames.csv`.
     base_dir: Optional[Path] = None,
     na_label: str = "NA",
     top_k_event: int = 3,
@@ -191,7 +194,11 @@ def load_ikea_split_test_model(
 
     We cap each segment distribution to top_k_event labels and renormalize (benchmark setting).
     """
-    root = base_dir or Path(ROOT_DIR) / "uncertain_event_data" / "ikea_asm" / "split=test" / f"model={model_id}"
+    if base_dir is not None:
+        root = Path(base_dir)
+    else:
+        root_base = Path(data_root) if data_root is not None else Path(ROOT_DIR)
+        root = root_base / "uncertain_event_data" / "ikea_asm" / "split=test" / f"model={model_id}"
     seg_csv = root / "segments_pred.csv"
     frames_csv = root / "frames.csv"
     if not seg_csv.exists():
@@ -604,6 +611,9 @@ def run_uncertain_next_activity_prediction(
     embedding_training: str = "top3_uncertain",  # "top3_uncertain" | "top1_determinized"
     epochs: int = 50,
     batch_size: int = 64,
+    # Optional override to make the benchmark OS/environment-independent.
+    # If set, must be a directory containing `uncertain_event_data/`.
+    data_root: Optional[Path] = None,
 ) -> Dict[str, object]:
     """
     Run one configuration on IKEA ASM split=test for a single model_id.
@@ -614,7 +624,12 @@ def run_uncertain_next_activity_prediction(
       - "weighted_onehot"
     """
     # Load cases
-    cases_all = load_ikea_split_test_model(model_id=model_id, na_label=na_label, top_k_event=int(top_k_event))
+    cases_all = load_ikea_split_test_model(
+        model_id=model_id,
+        data_root=data_root,
+        na_label=na_label,
+        top_k_event=int(top_k_event),
+    )
     case_ids = sorted(cases_all.keys())
     if split_strategy not in ("shuffle_seeded", "sorted"):
         raise ValueError("split_strategy must be 'shuffle_seeded' or 'sorted'")
@@ -713,8 +728,11 @@ def run_uncertain_next_activity_prediction(
         "representation": representation,
         "seed": int(seed),
         "top_k_event": int(top_k_event),
+        "na_label": str(na_label),
         "embedding_training": str(embedding_training),
         "max_len": int(max_len),
+        "split_strategy": str(split_strategy),
+        "data_root": str(Path(data_root).resolve()) if data_root is not None else str(Path(ROOT_DIR).resolve()),
         "n_cases": len(cases_all),
         "n_train_cases": len(cases_train),
         "n_val_cases": len(cases_val),

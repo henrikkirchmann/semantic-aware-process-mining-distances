@@ -36,6 +36,11 @@ from evaluation.evaluation_of_activity_distances.next_activity_prediction.next_a
 MODEL_ID = "frame_based__resnet18__pretrained__rgb__dev3"
 # MODEL_ID = "pose_based__ST_GCN_64__pretrained__pose__dev3"
 
+# Data root: directory that contains `uncertain_event_data/`.
+# - Default (None) uses the repo root inferred inside the benchmark module.
+# - On Windows, you can set this explicitly if you run the script from a different cwd/env.
+DATA_ROOT = REPO_ROOT
+
 # Which input representation(s) to run:
 # - "expected_embedding": trains embeddings, then uses expected embedding per segment
 # - "argmax_onehot": baseline (determinize each segment, one-hot)
@@ -220,6 +225,7 @@ if __name__ == "__main__":
             embedding_training=str(embedding_training),
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
+            data_root=DATA_ROOT,
         )
         # Keep the "grid" config explicit in the output row as well.
         res["grid_embedding_method"] = cfg["embedding_method"]
