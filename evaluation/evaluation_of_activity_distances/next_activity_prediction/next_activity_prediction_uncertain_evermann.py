@@ -540,7 +540,16 @@ def _train_eval_evermann(
     # Local import so the rest of the repo can be used without TF if needed.
     import tensorflow as tf
 
-    tf.random.set_seed(seed)
+    # Best-effort determinism for repeated runs (still may vary slightly on GPU/MPS).
+    try:
+        tf.keras.utils.set_random_seed(seed)
+    except Exception:
+        tf.random.set_seed(seed)
+    try:
+        # TF 2.13+: enable deterministic kernels when available.
+        tf.config.experimental.enable_op_determinism(True)
+    except Exception:
+        pass
     np.random.seed(seed)
     random.seed(seed)
 
@@ -588,6 +597,7 @@ def run_uncertain_next_activity_prediction(
     seed: int = 42,
     split_train: float = 0.64,
     split_val: float = 0.16,
+    split_strategy: str = "shuffle_seeded",  # "shuffle_seeded" | "sorted"
     max_len: int = 20,
     top_k_event: int = 3,
     na_label: str = "NA",
@@ -606,8 +616,11 @@ def run_uncertain_next_activity_prediction(
     # Load cases
     cases_all = load_ikea_split_test_model(model_id=model_id, na_label=na_label, top_k_event=int(top_k_event))
     case_ids = sorted(cases_all.keys())
-    rnd = random.Random(int(seed))
-    rnd.shuffle(case_ids)
+    if split_strategy not in ("shuffle_seeded", "sorted"):
+        raise ValueError("split_strategy must be 'shuffle_seeded' or 'sorted'")
+    if split_strategy == "shuffle_seeded":
+        rnd = random.Random(int(seed))
+        rnd.shuffle(case_ids)
 
     n = len(case_ids)
     n_train = int(round(split_train * n))
