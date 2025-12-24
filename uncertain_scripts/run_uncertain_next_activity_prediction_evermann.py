@@ -16,6 +16,7 @@ Benchmark specifics:
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, List
@@ -35,6 +36,11 @@ from evaluation.evaluation_of_activity_distances.next_activity_prediction.next_a
 
 MODEL_ID = "frame_based__resnet18__pretrained__rgb__dev3"
 # MODEL_ID = "pose_based__ST_GCN_64__pretrained__pose__dev3"
+
+# TensorFlow device selection:
+# - "auto": let TensorFlow use GPU if available (requires compatible CUDA/cuDNN on the machine)
+# - "cpu": force CPU (useful on clusters with incompatible CUDA/cuDNN runtimes)
+TF_DEVICE = "auto"  # "auto" | "cpu"
 
 # Data root: directory that contains `uncertain_event_data/`.
 # - Default (None) uses the repo root inferred inside the benchmark module.
@@ -201,6 +207,10 @@ def _append_rows_to_csv(rows: List[Dict[str, Any]], out_csv: Path) -> None:
 
 
 if __name__ == "__main__":
+    # Must be set BEFORE TensorFlow is imported (TF is imported lazily inside the benchmark).
+    if TF_DEVICE == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
     existing_keys = _load_existing_keys(OUT_CSV) if (SAVE_RESULTS and RESUME_IF_EXISTS) else set()
 
     rows: List[Dict[str, Any]] = []  # rows computed in this run (for snapshot + printing)
