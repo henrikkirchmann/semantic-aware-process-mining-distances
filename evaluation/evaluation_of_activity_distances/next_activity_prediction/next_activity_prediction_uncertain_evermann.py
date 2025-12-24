@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -598,18 +599,14 @@ def _train_eval_evermann(
     """
     Train a single-layer LSTM classifier and return accuracy on test.
     """
+    # IMPORTANT: if we need TF on CPU (e.g., cuDNN mismatch on a cluster),
+    # hide GPUs BEFORE importing tensorflow. This affects TF only; torch can still
+    # use CUDA if it was initialized earlier in the process.
+    if force_tf_cpu:
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
     # Local import so the rest of the repo can be used without TF if needed.
     import tensorflow as tf
-
-    if force_tf_cpu:
-        # Disable TF GPU usage without hiding GPUs globally (keeps CUDA visible for PyTorch).
-        try:
-            tf.config.set_visible_devices([], "GPU")
-        except Exception:
-            try:
-                tf.config.experimental.set_visible_devices([], "GPU")
-            except Exception:
-                pass
 
     # Best-effort determinism for repeated runs (still may vary slightly on GPU/MPS).
     try:
