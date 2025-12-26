@@ -88,9 +88,11 @@ NA_LABEL = "NA"
 
 # How to train embeddings (only used when representation="expected_embedding"):
 # - "top3_uncertain": train embeddings on top-3 capped uncertain segment distributions (default, our method)
+# - "top2_uncertain": train embeddings on top-2 capped uncertain segment distributions
 # - "top1_determinized": determinize each segment to its most likely non-NA label, then train embeddings
 EMBEDDING_TRAININGS = [
     "top3_uncertain",
+    # "top2_uncertain",
     # "top1_determinized",
 ]
 

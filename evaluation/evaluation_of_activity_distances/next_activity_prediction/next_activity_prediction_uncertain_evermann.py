@@ -715,7 +715,7 @@ def run_uncertain_next_activity_prediction(
     max_len: int = 20,
     top_k_event: int = 3,
     na_label: str = "NA",
-    embedding_training: str = "top3_uncertain",  # "top3_uncertain" | "top1_determinized"
+    embedding_training: str = "top3_uncertain",  # "top3_uncertain" | "top2_uncertain" | "top1_determinized"
     epochs: int = 50,
     batch_size: int = 64,
     # Optional override to make the benchmark OS/environment-independent.
@@ -733,12 +733,25 @@ def run_uncertain_next_activity_prediction(
       - "weighted_onehot"
       - "scaled_concat_full"
     """
-    # Load cases
+    # Determine the effective per-segment truncation level.
+    # For convenience, we tie the uncertainty mode to the top-k truncation:
+    # - top3_uncertain: cap to top-3 (default)
+    # - top2_uncertain: cap to top-2
+    # - top1_determinized: keep `top_k_event` cap for inputs (default 3), but determinize for embedding training
+    if embedding_training not in ("top3_uncertain", "top2_uncertain", "top1_determinized"):
+        raise ValueError("embedding_training must be 'top3_uncertain', 'top2_uncertain', or 'top1_determinized'")
+    eff_top_k_event = int(top_k_event)
+    if embedding_training == "top3_uncertain":
+        eff_top_k_event = 3
+    elif embedding_training == "top2_uncertain":
+        eff_top_k_event = 2
+
+    # Load cases (per-segment distributions are capped + renormalized here)
     cases_all = load_ikea_split_test_model(
         model_id=model_id,
         data_root=data_root,
         na_label=na_label,
-        top_k_event=int(top_k_event),
+        top_k_event=int(eff_top_k_event),
     )
     case_ids = sorted(cases_all.keys())
     if split_strategy not in ("shuffle_seeded", "sorted"):
@@ -780,8 +793,6 @@ def run_uncertain_next_activity_prediction(
     # - baselines: identity projection (|A| x |A|), frozen (keeps one-hot / weighted-one-hot)
     embedding_matrix: np.ndarray
     if representation in ("expected_embedding", "scaled_concat_full"):
-        if embedding_training not in ("top3_uncertain", "top1_determinized"):
-            raise ValueError("embedding_training must be 'top3_uncertain' or 'top1_determinized'")
         log_train_val = build_uncertain_event_log_from_cases(
             {**cases_train, **cases_val},
             na_label=na_label,
@@ -865,7 +876,7 @@ def run_uncertain_next_activity_prediction(
         "window_size": int(window_size),
         "representation": representation,
         "seed": int(seed),
-        "top_k_event": int(top_k_event),
+        "top_k_event": int(eff_top_k_event),
         "na_label": str(na_label),
         "embedding_training": str(embedding_training),
         "max_len": int(max_len),
