@@ -124,6 +124,16 @@ def _drop_na_and_renorm(dist: Dict[str, float], *, na_label: str = "NA") -> Dict
     return out
 
 
+def _drop_na_no_renorm(dist: Dict[str, float], *, na_label: str = "NA") -> Dict[str, float]:
+    """
+    Drop NA but do NOT renormalize the remaining probabilities.
+
+    This keeps the remaining mass at sum_{a!=NA} p(a) = 1 - p(NA) (after any top-k renorm that
+    may have happened upstream), so the model can implicitly observe non-existence mass.
+    """
+    return {a: float(p) for a, p in dist.items() if a != na_label and p is not None and float(p) > 0.0}
+
+
 def _argmax_label(dist: Dict[str, float]) -> Optional[str]:
     items = [(str(a), _safe_float(p)) for a, p in dist.items() if p is not None and _safe_float(p) > 0.0]
     if not items:
@@ -516,7 +526,8 @@ def _segment_probs_vector(seg: Segment, *, alphabet: List[str], na_label: str, m
       - "weighted": renormalized probabilities
       - "argmax": one-hot of argmax label (after dropping NA)
     """
-    d = _drop_na_and_renorm(seg.probs, na_label=na_label)
+    # IMPORTANT: we drop NA but do NOT renormalize; remaining mass encodes existence probability.
+    d = _drop_na_no_renorm(seg.probs, na_label=na_label)
     x = np.zeros((len(alphabet),), dtype=np.float32)
     if not d:
         return x
