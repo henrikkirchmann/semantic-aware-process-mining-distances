@@ -114,6 +114,22 @@ def _topk_renorm(dist: Dict[str, float], *, k: int) -> Dict[str, float]:
     return out
 
 
+def _topk_keep_no_renorm(dist: Dict[str, float], *, k: int) -> Dict[str, float]:
+    """
+    Keep top-k by prob but do NOT renormalize.
+
+    This is specific to the next-activity prediction benchmark: we want the remaining mass to
+    reflect the model's confidence / non-existence mass, rather than forcing each segment's
+    truncated distribution to sum to 1.
+    """
+    items = [(str(a), _safe_float(p)) for a, p in dist.items() if p is not None and _safe_float(p) > 0.0]
+    if not items:
+        return {}
+    items.sort(key=lambda kv: kv[1], reverse=True)
+    items = items[: max(1, int(k))]
+    return {a: float(p) for a, p in items}
+
+
 def _drop_na_and_renorm(dist: Dict[str, float], *, na_label: str = "NA") -> Dict[str, float]:
     out = {a: float(p) for a, p in dist.items() if a != na_label and p is not None and float(p) > 0.0}
     s = float(sum(out.values()))
@@ -238,7 +254,7 @@ def load_ikea_split_test_model(
     Load segments + GT frames for one model in IKEA ASM split=test.
     Returns dict[case_id] -> CaseData.
 
-    We cap each segment distribution to top_k_event labels and renormalize (benchmark setting).
+    We cap each segment distribution to top_k_event labels without renormalizing (benchmark setting).
     """
     if base_dir is not None:
         root = Path(base_dir)
@@ -294,7 +310,7 @@ def load_ikea_split_test_model(
         cid = int(getattr(row, "case_id"))
         probs = json.loads(getattr(row, "avg_probs_json"))
         probs = {str(a): float(p) for a, p in probs.items()}
-        probs = _topk_renorm(probs, k=int(top_k_event))
+        probs = _topk_keep_no_renorm(probs, k=int(top_k_event))
         seg_by_case.setdefault(cid, []).append(
             Segment(
                 start_t=int(getattr(row, "start_timestamp")),
