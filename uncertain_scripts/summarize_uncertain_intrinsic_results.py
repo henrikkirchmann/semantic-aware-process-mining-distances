@@ -3,10 +3,10 @@ PyCharm-friendly summarizer for the *uncertain intrinsic evaluation* results.
 
 What it does
 ------------
-- Reads the per-run dfavg pickles written by:
+- Reads the per-run result pickles written by the uncertain intrinsic benchmark:
   `evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/evaluation_activity_distance_intrinsic_uncertain.py`
   under:
-    results/activity_distances/intrinsic_uncertain_df_avg/<log_name>/u_<u>/dfavg_r<r>_w<w>_samplesize_<s>.pkl
+    evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/results/<log_name>/<method>/r_<r>_w_<w>_s_<s>_u_<u>.pkl
 - Filters to a user-provided list of logs, (r,w,s,u) settings, and methods.
 - Writes a new CSV with one row per (log, r, w, s, u, method).
 - Aggregates over logs (and over multiple r/w/s entries if provided) and writes a second CSV.
@@ -39,6 +39,15 @@ from definitions import ROOT_DIR
 # =============================================================================
 # Configuration (edit in IDE)
 # =============================================================================
+
+# Where the uncertain intrinsic benchmark stores per-run pickles.
+INTRINSIC_UNCERTAIN_RESULTS_DIR = (
+    Path(ROOT_DIR)
+    / "evaluation"
+    / "evaluation_of_activity_distances"
+    / "intrinsic_evaluation_uncertain"
+    / "results"
+)
 
 # List of log folder names (as used under results/activity_distances/intrinsic_uncertain_df_avg/<log_name>/)
 LOG_NAMES = [
@@ -110,21 +119,20 @@ def _expand_methods() -> List[str]:
     return out
 
 
-def _dfavg_path(*, log_name: str, u: int, r: int, w: int, s: int) -> Path:
+def _result_pkl_path(*, log_name: str, method: str, u: int, r: int, w: int, s: int) -> Path:
     return (
-        Path(ROOT_DIR)
-        / "results"
-        / "activity_distances"
-        / "intrinsic_uncertain_df_avg"
+        INTRINSIC_UNCERTAIN_RESULTS_DIR
         / log_name
-        / f"u_{int(u)}"
-        / f"dfavg_r{int(r)}_w{int(w)}_samplesize_{int(s)}.pkl"
+        / method
+        / f"r_{int(r)}_w_{int(w)}_s_{int(s)}_u_{int(u)}.pkl"
     )
 
 
-def _load_dfavg(path: Path) -> pd.DataFrame:
-    # dfavg is a pickled pandas DataFrame (single row)
-    return pd.read_pickle(path)
+def _load_result_tuple(path: Path) -> tuple:
+    import pickle
+
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
 
 def collect_selected_rows(
@@ -141,53 +149,47 @@ def collect_selected_rows(
     missing: List[Dict[str, object]] = []
 
     for log_name in log_names:
-        for u in u_values:
-            for r in r_values:
-                for w in w_values:
-                    for s in s_values:
-                        pkl = _dfavg_path(log_name=log_name, u=u, r=r, w=w, s=s)
-                        if not pkl.exists():
-                            if strict:
-                                raise FileNotFoundError(str(pkl))
-                            missing.append(
-                                {
-                                    "log_name": log_name,
-                                    "u": int(u),
-                                    "r": int(r),
-                                    "w": int(w),
-                                    "s": int(s),
-                                    "expected_file": str(pkl),
-                                }
-                            )
-                            continue
-                        df = _load_dfavg(pkl)
-                        if df is None or len(df) == 0:
-                            continue
-
-                        # Normalize column names from deterministic/uncertain dfavg variants
-                        # Expected columns: Log Name, Distance Function, u, diameter, precision@w-1, precision@1, triplet
-                        df = df.copy()
-                        if "Log Name" not in df.columns and "log_name" in df.columns:
-                            df["Log Name"] = df["log_name"]
-                        if "Distance Function" not in df.columns and "method" in df.columns:
-                            df["Distance Function"] = df["method"]
-
-                        for _idx, rec in df.iterrows():
-                            if str(rec.get("Distance Function")) not in set(methods):
+        for method in methods:
+            for u in u_values:
+                for r in r_values:
+                    for w in w_values:
+                        for s in s_values:
+                            pkl = _result_pkl_path(log_name=log_name, method=method, u=u, r=r, w=w, s=s)
+                            if not pkl.exists():
+                                if strict:
+                                    raise FileNotFoundError(str(pkl))
+                                missing.append(
+                                    {
+                                        "log_name": log_name,
+                                        "method": method,
+                                        "u": int(u),
+                                        "r": int(r),
+                                        "w": int(w),
+                                        "s": int(s),
+                                        "expected_file": str(pkl),
+                                    }
+                                )
                                 continue
+
+                            # Expected tuple order (as saved by the intrinsic script):
+                            # (r, w, u, avg_norm_entropy, diameter, precision@w-1, precision@1, triplet)
+                            t = _load_result_tuple(pkl)
+                            if not isinstance(t, tuple) or len(t) != 8:
+                                continue
+                            rr, ww, uu, ent, dia, prec_wm1, prec_1, tri = t
                             rows.append(
                                 {
                                     "log_name": log_name,
-                                    "method": str(rec.get("Distance Function")),
-                                    "u": int(rec.get("u")),
-                                    "r": int(r),
-                                    "w": int(w),
+                                    "method": str(method),
+                                    "u": int(uu),
+                                    "r": int(rr),
+                                    "w": int(ww),
                                     "s": int(s),
-                                    "avg_norm_entropy": float(rec.get("avg_norm_entropy", 0.0)),
-                                    "diameter": float(rec.get("diameter", 0.0)),
-                                    "prec": float(rec.get("precision@w-1", 0.0)),
-                                    "nn": float(rec.get("precision@1", 0.0)),
-                                    "triplet": float(rec.get("triplet", 0.0)),
+                                    "avg_norm_entropy": float(ent),
+                                    "diameter": float(dia),
+                                    "prec": float(prec_wm1),
+                                    "nn": float(prec_1),
+                                    "triplet": float(tri),
                                     "source_file": str(pkl),
                                 }
                             )
@@ -306,11 +308,11 @@ def main() -> None:
         df_missing = pd.DataFrame(missing)
         if PRINT_MISSING:
             if PRINT_ALL_MISSING:
-                print(f"[summarize] missing dfavg files: {len(df_missing)} (showing all)")
+                print(f"[summarize] missing result files: {len(df_missing)} (showing all)")
                 print(df_missing.to_string(index=False))
             else:
                 head_n = min(int(PRINT_MISSING_HEAD_N), len(df_missing))
-                print(f"[summarize] missing dfavg files: {len(df_missing)} (showing first {head_n})")
+                print(f"[summarize] missing result files: {len(df_missing)} (showing first {head_n})")
                 print(df_missing.head(head_n).to_string(index=False))
 
     df_agg = aggregate_mean(df_raw)
