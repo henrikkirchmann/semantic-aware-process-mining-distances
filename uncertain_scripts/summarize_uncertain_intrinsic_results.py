@@ -85,6 +85,12 @@ OUT_PLOT_DIR = OUT_DIR / "plots"
 # If True, print a short report of requested configs for which no dfavg pickle exists.
 PRINT_MISSING = True
 
+# If True, print *all* missing configs (can be verbose). If False, print only the first N rows.
+PRINT_ALL_MISSING = True
+
+# Only used when PRINT_ALL_MISSING = False
+PRINT_MISSING_HEAD_N = 50
+
 # If True, abort immediately when any requested dfavg pickle is missing.
 STRICT = False
 
@@ -299,10 +305,13 @@ def main() -> None:
     if missing:
         df_missing = pd.DataFrame(missing)
         if PRINT_MISSING:
-            # Keep console output short: show count + first N examples.
-            head_n = min(20, len(df_missing))
-            print(f"[summarize] missing dfavg files: {len(df_missing)} (showing first {head_n})")
-            print(df_missing.head(head_n).to_string(index=False))
+            if PRINT_ALL_MISSING:
+                print(f"[summarize] missing dfavg files: {len(df_missing)} (showing all)")
+                print(df_missing.to_string(index=False))
+            else:
+                head_n = min(int(PRINT_MISSING_HEAD_N), len(df_missing))
+                print(f"[summarize] missing dfavg files: {len(df_missing)} (showing first {head_n})")
+                print(df_missing.head(head_n).to_string(index=False))
 
     df_agg = aggregate_mean(df_raw)
     df_agg.to_csv(OUT_CSV_AGG, index=False)
