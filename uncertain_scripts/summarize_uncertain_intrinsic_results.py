@@ -80,7 +80,14 @@ METHODS: List[str] = []
 OUT_DIR = Path(ROOT_DIR) / "results" / "activity_distances" / "intrinsic_uncertain_summary"
 OUT_CSV_RAW = OUT_DIR / "intrinsic_uncertain_selected_rows.csv"
 OUT_CSV_AGG = OUT_DIR / "intrinsic_uncertain_aggregated_mean.csv"
+OUT_CSV_MISSING = OUT_DIR / "intrinsic_uncertain_missing_configs.csv"
 OUT_PLOT_DIR = OUT_DIR / "plots"
+
+# If True, print a short report of requested configs for which no dfavg pickle exists.
+PRINT_MISSING = True
+
+# If True, abort immediately when any requested dfavg pickle is missing.
+STRICT = False
 
 
 # =============================================================================
@@ -126,6 +133,7 @@ def collect_selected_rows(
     strict: bool = False,
 ) -> pd.DataFrame:
     rows: List[Dict[str, object]] = []
+    missing: List[Dict[str, object]] = []
 
     for log_name in log_names:
         for u in u_values:
@@ -136,6 +144,16 @@ def collect_selected_rows(
                         if not pkl.exists():
                             if strict:
                                 raise FileNotFoundError(str(pkl))
+                            missing.append(
+                                {
+                                    "log_name": log_name,
+                                    "u": int(u),
+                                    "r": int(r),
+                                    "w": int(w),
+                                    "s": int(s),
+                                    "expected_file": str(pkl),
+                                }
+                            )
                             continue
                         df = _load_dfavg(pkl)
                         if df is None or len(df) == 0:
@@ -170,7 +188,7 @@ def collect_selected_rows(
                             )
 
     if not rows:
-        return pd.DataFrame(
+        out = pd.DataFrame(
             columns=[
                 "log_name",
                 "method",
@@ -186,7 +204,11 @@ def collect_selected_rows(
                 "source_file",
             ]
         )
-    return pd.DataFrame(rows)
+        out.attrs["missing"] = missing
+        return out
+    out = pd.DataFrame(rows)
+    out.attrs["missing"] = missing
+    return out
 
 
 def aggregate_mean(df: pd.DataFrame) -> pd.DataFrame:
@@ -268,11 +290,25 @@ def main() -> None:
         s_values=S_VALUES,
         u_values=U_VALUES,
         methods=methods,
-        strict=False,
+        strict=STRICT,
     )
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     df_raw.to_csv(OUT_CSV_RAW, index=False)
+
+    missing = df_raw.attrs.get("missing", [])
+    if missing:
+        df_missing = pd.DataFrame(missing)
+        df_missing.to_csv(OUT_CSV_MISSING, index=False)
+        if PRINT_MISSING:
+            # Keep console output short: show count + first N examples.
+            head_n = min(20, len(df_missing))
+            print(f"[summarize] missing dfavg files: {len(df_missing)} (showing first {head_n})")
+            print(df_missing.head(head_n).to_string(index=False))
+            print(f"[summarize] wrote missing list to: {OUT_CSV_MISSING}")
+    else:
+        # Still write an empty missing CSV for reproducibility.
+        pd.DataFrame(columns=["log_name", "u", "r", "w", "s", "expected_file"]).to_csv(OUT_CSV_MISSING, index=False)
 
     df_agg = aggregate_mean(df_raw)
     df_agg.to_csv(OUT_CSV_AGG, index=False)
@@ -286,6 +322,7 @@ def main() -> None:
 
     print(f"Wrote: {OUT_CSV_RAW}")
     print(f"Wrote: {OUT_CSV_AGG}")
+    print(f"Wrote: {OUT_CSV_MISSING}")
     print(f"Wrote plots to: {OUT_PLOT_DIR}")
 
 
