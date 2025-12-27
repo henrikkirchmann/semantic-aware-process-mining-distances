@@ -63,25 +63,25 @@ DATA_ROOT = REPO_ROOT
 # - "weighted_onehot": baseline (renormalized probabilities, one-hot weights)
 REPRESENTATIONS = [
     "expected_embedding",
-    # "scaled_concat_full",  # full-alphabet concatenation: [p(a1)v(a1) || ... || p(a|A|)v(a|A|)]
-    # "argmax_onehot",
-    # "weighted_onehot",
+     "scaled_concat_full",  # full-alphabet concatenation: [p(a1)v(a1) || ... || p(a|A|)v(a|A|)]
+     "argmax_onehot",
+     "weighted_onehot",
 ]
 
-# Embedding methods to sweep (only used for representation="expected_embedding")
+# Embedding methods to sweep (used for embedding-based representations, e.g. "expected_embedding", "scaled_concat_full")
 EMBEDDING_METHODS = [
     "Uncertain AA Seq",
-    # "Uncertain AA Seq PMI",
-    # "Uncertain AA Seq PPMI",
-    # "Uncertain AC Seq",
-    # "Uncertain AC Seq PMI",
-    # "Uncertain AC Seq PPMI",
-    # "Uncertain act2vec CBOW",
-    # "Uncertain act2vec Skip-gram",
+     "Uncertain AA Seq PMI",
+     "Uncertain AA Seq PPMI",
+     "Uncertain AC Seq",
+     "Uncertain AC Seq PMI",
+     "Uncertain AC Seq PPMI",
+     "Uncertain act2vec CBOW",
+     "Uncertain act2vec Skip-gram",
 ]
 
 # Window sizes to sweep (same role as in intrinsic evaluation)
-WINDOW_SIZES = [3, 5, 9]
+WINDOW_SIZES = [3, 5]
 
 TOP_K_EVENT = 3  # cap per-segment distributions to top-3 labels before training embeddings / predictor
 NA_LABEL = "NA"
@@ -93,7 +93,7 @@ NA_LABEL = "NA"
 EMBEDDING_TRAININGS = [
     "top3_uncertain",
     # "top2_uncertain",
-    # "top1_determinized",
+     "top1_determinized",
 ]
 
 MAX_LEN = 20
@@ -116,7 +116,8 @@ WRITE_SNAPSHOT_COPY = True
 
 
 def _should_run_expected_embedding(representation: str) -> bool:
-    return representation == "expected_embedding"
+    # Representations that require embedding training / an embedding method sweep.
+    return representation in ("expected_embedding", "scaled_concat_full")
 
 
 def _iter_configs() -> List[Dict[str, Any]]:
