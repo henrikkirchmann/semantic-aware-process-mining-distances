@@ -89,13 +89,15 @@ def _pretty_method_name(method: str) -> str:
 def _load_and_prepare(path: Path) -> pd.DataFrame:
     if not Path(path).exists():
         # Attempt auto-discovery (useful when results dir differs or is not tracked in git).
-        candidates = list(Path(ROOT_DIR).rglob("intrinsic_uncertain_aggregated_mean.csv"))
+        candidates = list(Path(ROOT_DIR).rglob("intrinsic_uncertain_aggregated_mean*.csv"))
         if candidates:
+            # Prefer newest file (helps when you keep timestamped copies).
+            candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
             path = candidates[0]
         else:
             raise FileNotFoundError(
                 "Could not find the input CSV. Set IN_CSV to the path of "
-                "`intrinsic_uncertain_aggregated_mean.csv` produced by "
+                "`intrinsic_uncertain_aggregated_mean*.csv` produced by "
                 "`uncertain_scripts/summarize_uncertain_intrinsic_results.py`."
             )
 
