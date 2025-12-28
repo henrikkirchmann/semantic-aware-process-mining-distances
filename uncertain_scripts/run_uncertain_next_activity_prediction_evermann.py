@@ -76,6 +76,12 @@ EMBEDDING_METHODS = [
      "Uncertain AC Seq",
      "Uncertain AC Seq PMI",
      "Uncertain AC Seq PPMI",
+     "Uncertain AA MSet",
+     "Uncertain AA MSet PMI",
+     "Uncertain AA MSet PPMI",
+     "Uncertain AC MSet",
+     "Uncertain AC MSet PMI",
+     "Uncertain AC MSet PPMI",
      "Uncertain act2vec CBOW",
      "Uncertain act2vec Skip-gram",
 ]
@@ -131,6 +137,9 @@ def _iter_configs() -> List[Dict[str, Any]]:
     for representation in REPRESENTATIONS:
         if _should_run_expected_embedding(representation):
             for embedding_method in EMBEDDING_METHODS:
+                # Skip scaled_concat_full for all Uncertain AC* methods (too wide / not intended).
+                if representation == "scaled_concat_full" and str(embedding_method).startswith("Uncertain AC"):
+                    continue
                 for window_size in WINDOW_SIZES:
                     for embedding_training in EMBEDDING_TRAININGS:
                         runs.append(
