@@ -70,14 +70,33 @@ WINDOW_SIZES: Optional[List[int]] = [3, 5]
 U_LEVELS: Optional[List[int]] = [1, 3]
 
 # Figure sizing
+# Stacked 2x1 layout sizing
 FIG_W = 13.5
-FIG_H = 5.0
+FIG_H = 9.5
 
 # Rotate x labels (recommended)
 ROTATE_XTICKS = True
 
-# Legend placement
-LEGEND_LOC = "lower center"
+# Legend placement (works well for stacked layout)
+LEGEND_LOC = "upper center"
+
+# Font sizes (increase titles / y-label / legend, but keep x tick labels unchanged)
+TITLE_FONTSIZE = 13
+YLABEL_FONTSIZE = 13
+LEGEND_FONTSIZE = 11
+LEGEND_TITLE_FONTSIZE = 11
+
+# Increase vertical spacing between the shared legend and the top subplot title.
+# (Tuned to be noticeable but not wasteful.)
+LEGEND_Y = 1.010
+TIGHT_LAYOUT_TOP = 0.940
+
+# Add a horizontal guide line at the maximum accuracy (per subplot) for easier visual comparison.
+DRAW_MAX_BASELINE = True
+MAX_BASELINE_COLOR = "0.25"
+MAX_BASELINE_LS = (0, (4, 3))  # dashed
+MAX_BASELINE_LW = 0.9
+MAX_BASELINE_ALPHA = 0.8
 
 
 # =============================================================================
@@ -97,6 +116,14 @@ def _setup_style() -> None:
     mpl.rcParams["svg.fonttype"] = "none"
     mpl.rcParams["mathtext.fontset"] = "stix"
 
+    # Slightly larger than `plot_uncertain_intrinsic_results_pretty.py` for this figure
+    mpl.rcParams["axes.titlesize"] = 11
+    mpl.rcParams["axes.labelsize"] = 11
+    mpl.rcParams["xtick.labelsize"] = 10
+    mpl.rcParams["ytick.labelsize"] = 10
+    mpl.rcParams["legend.fontsize"] = 10
+    mpl.rcParams["legend.title_fontsize"] = 10
+
 
 def _pretty_method_name(method: str) -> str:
     import re
@@ -114,7 +141,8 @@ def _derive_u_from_embedding_training(embedding_training: str) -> Optional[int]:
 
     s = str(embedding_training or "")
     # Typical: top1_determinized / top3_uncertain / top2_uncertain
-    m = re.match(r"^\s*top(\d+)\b", s)
+    # NOTE: don't use a word-boundary here because "_" is a word char; "top3_uncertain" would not match.
+    m = re.match(r"^\s*top(\d+)", s)
     if m:
         try:
             return int(m.group(1))
@@ -139,10 +167,15 @@ def _repr_short(repr_name: str) -> str:
 def _dataset_title(model_id: str) -> str:
     mid = str(model_id)
     if "clip_based__i3d" in mid and "rgb" in mid:
-        return "IKEA ASM (RGB, I3D)"
+        # Match paper naming (short model-focused label)
+        return "I3D (RGB, dev2)"
     if "pose_based__HCN" in mid or "pose_based__hcn" in mid:
-        return "IKEA ASM (Pose, HCN)"
+        return "HCN (Pose, dev3)"
     return mid
+
+
+def _is_baseline_method_label(method_label: str) -> bool:
+    return str(method_label) in {"Argmax Onehot", "Weighted Onehot"}
 
 
 def _format_tick_label_with_bold_family(label: str) -> str:
@@ -274,7 +307,19 @@ def _load_and_prepare(paths: List[Path]) -> pd.DataFrame:
             return (base, win)
         return (m, 10**9)
 
-    method_order = sorted(df["method_pretty"].unique().tolist(), key=_split_base_win)
+    def _method_sort_key(s: str) -> Tuple[int, str, int]:
+        """
+        Ensure the one-hot baselines are always at the far right.
+        """
+        s = str(s)
+        if _is_baseline_method_label(s):
+            # Force last; preserve a stable order between the two baselines.
+            baseline_rank = 0 if s == "Argmax Onehot" else 1
+            return (1, "zzz_baseline", baseline_rank)
+        base, win = _split_base_win(s)
+        return (0, str(base), int(win))
+
+    method_order = sorted(df["method_pretty"].unique().tolist(), key=_method_sort_key)
     df["method_pretty"] = pd.Categorical(df["method_pretty"], categories=method_order, ordered=True)
 
     return df
@@ -290,6 +335,7 @@ def _save(fig, stem: str) -> None:
 
 def _plot_two_panel(df: pd.DataFrame):
     import matplotlib.pyplot as plt
+    import numpy as np
     import seaborn as sns
 
     titles = df[["model_id", "model_title"]].drop_duplicates().sort_values("model_title")
@@ -298,37 +344,108 @@ def _plot_two_panel(df: pd.DataFrame):
         # Still plot whatever is present
         model_ids = df["model_id"].drop_duplicates().tolist()
 
-    fig, axes = plt.subplots(1, len(model_ids), figsize=(FIG_W, FIG_H), sharey=True)
+    # Stacked plots (2x1): one subplot per model_id (log)
+    fig, axes = plt.subplots(len(model_ids), 1, figsize=(FIG_W, FIG_H), sharey=True)
     if len(model_ids) == 1:
         axes = [axes]
 
-    palette: Dict[str, str] = {
-        "u=1 Expected": "#4C72B0",
-        "u=1 Scaled Concat": "#55A868",
-        "u=3 Expected": "#C44E52",
-        "u=3 Scaled Concat": "#8172B3",
-        "Baseline": "#4D4D4D",
-    }
+    # Better factor-visualization (robust in PDF/SVG):
+    # - color encodes u (1 vs 3)
+    # - fill encodes representation (Expected = filled, Scaled Concat = hollow)
+    # - baseline uses neutral gray
+    u_colors: Dict[int, str] = {1: "#4C72B0", 3: "#C44E52"}  # blue / red
+    def _variant_color(v: str) -> str:
+        vv = str(v)
+        if vv.startswith("u=1"):
+            return u_colors[1]
+        if vv.startswith("u=3"):
+            return u_colors[3]
+        return "#4D4D4D"  # baseline
+
+    variant_categories = list(df["variant"].cat.categories) if hasattr(df["variant"], "cat") else sorted(df["variant"].unique())
+    palette: Dict[str, str] = {v: _variant_color(v) for v in variant_categories}
+
+    def _variant_is_hollow(v: str) -> bool:
+        vv = str(v)
+        return vv.endswith("Scaled Concat")
+
+    def _variant_is_baseline(v: str) -> bool:
+        return str(v) == "Baseline"
+
+    def _draw_grouped_bars(ax, sub: pd.DataFrame) -> None:
+        """
+        Draw grouped bars manually so styling is correct even when some method×variant combos are missing.
+        """
+        cats = [str(c) for c in sub["method_pretty"].cat.categories]
+        variants = [str(v) for v in sub["variant"].cat.categories]
+        x = np.arange(len(cats), dtype=float)
+        n = max(1, len(variants))
+
+        # group width and per-bar width
+        group_width = 0.78
+        bar_w = group_width / n
+        offsets = (np.arange(n, dtype=float) - (n - 1) / 2.0) * bar_w
+
+        # Create fast lookup
+        lookup = {(str(r["method_pretty"]), str(r["variant"])): float(r["test_acc"]) for _, r in sub.iterrows()}
+
+        for j, v in enumerate(variants):
+            for i, m in enumerate(cats):
+                key = (m, v)
+                if key not in lookup:
+                    continue
+                y = lookup[key]
+                color = palette.get(v, "#4D4D4D")
+
+                if _variant_is_baseline(v):
+                    # Baseline: solid gray
+                    ax.bar(
+                        x[i] + offsets[j],
+                        y,
+                        width=bar_w * 0.95,
+                        color=color,
+                        edgecolor=color,
+                        linewidth=0.0,
+                        zorder=3,
+                    )
+                elif _variant_is_hollow(v):
+                    # Scaled Concat: hollow bar with solid colored outline + hatch fill
+                    bars = ax.bar(
+                        x[i] + offsets[j],
+                        y,
+                        width=bar_w * 0.95,
+                        color="none",
+                        edgecolor=color,
+                        linewidth=1.2,
+                        zorder=3,
+                    )
+                    # Keep outline solid; use hatch to visually distinguish from Expected.
+                    try:
+                        for b in bars:
+                            b.set_linestyle("solid")
+                            b.set_hatch(r"\\\\")  # backslash hatch
+                    except Exception:
+                        pass
+                else:
+                    # Expected: filled bar
+                    ax.bar(
+                        x[i] + offsets[j],
+                        y,
+                        width=bar_w * 0.95,
+                        color=color,
+                        edgecolor=color,
+                        linewidth=0.0,
+                        zorder=3,
+                    )
+
+        # Ensure categorical tick positions align with our manual x positions
+        ax.set_xticks(x)
+        ax.set_xlim(-0.6, len(cats) - 0.4)
 
     for ax, mid in zip(axes, model_ids):
         sub = df[df["model_id"] == mid].copy()
-        sns.barplot(
-            data=sub,
-            x="method_pretty",
-            y="test_acc",
-            hue="variant",
-            ax=ax,
-            dodge=True,
-            errorbar=None,
-            palette=palette,
-        )
-        # Remove bar borders
-        for p in ax.patches:
-            try:
-                p.set_linewidth(0.0)
-                p.set_edgecolor(p.get_facecolor())
-            except Exception:
-                pass
+        # Draw bars manually (seaborn not used for bars here to ensure correct styling).
+        _draw_grouped_bars(ax, sub)
 
         # Tick label formatting (force set to preserve mathtext bolding)
         try:
@@ -342,9 +459,23 @@ def _plot_two_panel(df: pd.DataFrame):
             pass
 
         ax.set_xlabel("")
-        ax.set_ylabel("Test Accuracy" if ax is axes[0] else "")
-        ax.set_title(_dataset_title(mid))
+        # Label on BOTH subplots (requested)
+        ax.set_ylabel("Accuracy", fontsize=YLABEL_FONTSIZE)
+        ax.set_title(_dataset_title(mid), fontsize=TITLE_FONTSIZE)
         ax.set_ylim(0.0, 1.0)
+
+        # Horizontal baseline at the maximum accuracy for this subplot.
+        if DRAW_MAX_BASELINE and len(sub):
+            y_max = float(sub["test_acc"].max())
+            if y_max == y_max and y_max > 0.0:  # not NaN
+                ax.axhline(
+                    y=y_max,
+                    color=MAX_BASELINE_COLOR,
+                    linestyle=MAX_BASELINE_LS,
+                    linewidth=MAX_BASELINE_LW,
+                    alpha=MAX_BASELINE_ALPHA,
+                    zorder=0,
+                )
 
         if ROTATE_XTICKS:
             ax.tick_params(axis="x", rotation=45)
@@ -363,23 +494,43 @@ def _plot_two_panel(df: pd.DataFrame):
         for idx in last_indices[:-1]:
             ax.axvline(idx + 0.5, color="0.5", linestyle=(0, (2, 3)), linewidth=0.8, alpha=0.6, zorder=0)
 
-    # Shared legend (bottom center)
-    handles, labels = axes[0].get_legend_handles_labels()
-    for ax in axes:
-        leg = ax.get_legend()
-        if leg is not None:
-            leg.remove()
+    # Shared legend (top center): show the 2-factor encoding cleanly
+    import matplotlib.patches as mpatches
 
+    # Legend part 1: u-level colors
+    h_u1 = mpatches.Patch(facecolor=u_colors[1], edgecolor=u_colors[1], label="u=1")
+    h_u3 = mpatches.Patch(facecolor=u_colors[3], edgecolor=u_colors[3], label="u=3")
+    # Legend part 2: representation (fill vs hollow)
+    h_exp = mpatches.Patch(facecolor="0.85", edgecolor="0.85", label="Expected (filled)")
+    h_sc = mpatches.Patch(
+        facecolor="none",
+        edgecolor="0.30",
+        linewidth=1.2,
+        linestyle="solid",
+        hatch=r"\\\\",
+        label="Scaled Concat (hollow)",
+    )
+    # Baseline
+    h_base = mpatches.Patch(facecolor="#4D4D4D", edgecolor="#4D4D4D", label="Baseline")
+
+    legend_handles = [h_u1, h_u3, h_exp, h_sc, h_base]
     fig.legend(
-        handles,
-        labels,
-        title="Setting",
+        legend_handles,
+        [h.get_label() for h in legend_handles],
+        title="Encoding (color = u, hatch = representation)",
         loc=LEGEND_LOC,
-        ncol=max(1, min(5, len(labels))),
+        bbox_to_anchor=(0.5, LEGEND_Y),
+        ncol=len(legend_handles),
         frameon=True,
+        fontsize=LEGEND_FONTSIZE,
+        title_fontsize=LEGEND_TITLE_FONTSIZE,
+        handlelength=1.6,
+        columnspacing=1.2,
+        handletextpad=0.5,
     )
 
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    # Leave room for legend at top.
+    fig.tight_layout(rect=(0, 0, 1, TIGHT_LAYOUT_TOP))
     return fig
 
 

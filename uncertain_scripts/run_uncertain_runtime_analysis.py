@@ -45,6 +45,20 @@ REPETITIONS = 3
 
 NA_LABEL = "NA"
 
+# -----------------------------------------------------------------------------
+# Methods to evaluate (edit in IDE)
+# -----------------------------------------------------------------------------
+#
+# Explicit list, PyCharm-friendly (mirrors `run_uncertain_next_activity_prediction_evermann.py` style).
+# These are *base method names* (window suffix is added via add_window_size_evaluation()).
+#
+# Tip: you can comment out methods you don't want to benchmark.
+METHODS = [
+    # Default: all uncertain methods
+    *list(UNCERTAIN_COUNT_BASED_METHODS),
+    *list(UNCERTAIN_NEURAL_METHODS),
+]
+
 # Intrinsic-benchmark semantics for runtime evaluation:
 # apply top-u truncation per event *with renormalization* before running methods.
 UNCERTAINTY_LEVEL_U = 3
@@ -53,12 +67,25 @@ UNCERTAINTY_LEVEL_U = 3
 LIMIT_TRACES = None
 
 
+def _dedupe_keep_order(xs: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for x in xs:
+        x = str(x)
+        if x in seen:
+            continue
+        seen.add(x)
+        out.append(x)
+    return out
+
+
 if __name__ == "__main__":
-    methods = add_window_size_evaluation(
-        list(UNCERTAIN_COUNT_BASED_METHODS) + list(UNCERTAIN_NEURAL_METHODS),
-        WINDOW_SIZES,
-    )
+    base_methods = _dedupe_keep_order(list(METHODS))
+    if not base_methods:
+        raise ValueError("METHODS is empty. Please add at least one method name.")
+    methods = add_window_size_evaluation(base_methods, WINDOW_SIZES)
     print(f"[uncertain-runtime] logs={LOG_LIST}")
+    print(f"[uncertain-runtime] base_methods={len(base_methods)}")
     print(f"[uncertain-runtime] methods={len(methods)} window_sizes={WINDOW_SIZES} repetitions={REPETITIONS}")
 
     results = evaluate_runtime_uncertain(
