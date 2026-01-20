@@ -1,11 +1,50 @@
-# Benchmarking Distributional Similarity between Activities in Event Data
+# Benchmarking Distributional Similarity Between Activities (Certain + Uncertain Event Data)
 
+This repository contains code, (processed) data, and results for **two closely related papers**:
 
-This repository accompanies the ICPM 2025 submission by Kirchmann et al.:
+- **ICPM 2025 (certain event data)**: Henrik Kirchmann, Stephan A. Fahrenkrog-Petersen, Xixi Lu, Matthias Weidlich, *Let’s Simply Count: Quantifying Distributional Similarity between Activities in Event Data*, `10.1109/ICPM66919.2025.11220676`
+- **Journal extension (certain + uncertain event data)**: Henrik Kirchmann, Stephan A. Fahrenkrog-Petersen, Xixi Lu, Matthias Weidlich, *Distributional Similarity Between Activities in Certain and Uncertain Event Data* (Process Science collection “Best Process Science Conference Papers 2025”, under review)
 
-**Let’s Simply Count: Quantifying Distributional Similarity between Activities in Event Data**  
+If you want to reproduce the paper plots for the journal extension, you can do so directly from the CSVs/XES files shipped in this repository (see **Journal extension** below).
 
----
+## Quick navigation
+
+- **Track A (ICPM 2025 / certain event data)**: see [ICPM 2025: Certain Event Data](#icpm-2025-certain-event-data)
+- **Track B (Journal extension / uncertain event data)**: see [Journal extension: Uncertain Event Data](#journal-extension-uncertain-event-data)
+- **Where to get the uncertain IKEA ASM logs**: see [IKEA ASM uncertain event logs](#ikea-asm-uncertain-event-logs)
+
+## Installation
+
+Use **Python 3.11**.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Optional: Autoencoder GPU setup
+
+The autoencoder baseline requires a compatible CUDA/cuDNN setup. If you do not have a suitable GPU environment, do **not** run the autoencoder baseline.
+
+## Repository layout (at a glance)
+
+- **Certain (ICPM 2025)**
+  - Methods: `distances/activity_distances/`
+  - Benchmarks: `evaluation/evaluation_of_activity_distances/`
+  - Results: `results/activity_distances/`
+- **Uncertain (Journal extension)**
+  - Methods: `distances/uncertain_activity_distances/`
+  - Scripts (intrinsic/next-activity/runtimes/plots): `uncertain_scripts/`
+  - Utilities: `uncertain_utils/`
+  - IKEA ASM-derived uncertain logs used in the paper: `uncertain_event_data/ikea_asm/`
+  - Uncertain intrinsic plots: `results/activity_distances/intrinsic_uncertain_summary/paper_plots/`
+  - Uncertain next-activity plots: `results/next_activity_prediction_uncertain_evermann/paper_plots/`
+
+## ICPM 2025: Certain Event Data
+
+This track corresponds to the ICPM 2025 paper (*Let’s Simply Count*). Below we keep the original, detailed repository documentation for reproducing the **certain event data** experiments.
+
 ## Setup
 
 Make sure you are using **Python 3.11** to run the scripts.
@@ -52,57 +91,6 @@ Our proposed methods derive activity embeddings and distributional similarity fr
   [`distances/activity_distances/activity_context_frequency/activity_contex_frequency.py`](./distances/activity_distances/activity_context_frequency/activity_contex_frequency.py)
 - **PMI & PPMI postprocessing:**  
   [`distances/activity_distances/pmi/pmi.py`](./distances/activity_distances/pmi/pmi.py)  
-
----
-
-## Uncertain Event Logs (Journal Extension – Expected Counts)
-
-This repo also contains an **extension of the count-based family to uncertain event data**, using **expected counts** (probability-weighted frequencies). All code for uncertain data lives in new folders/files containing `uncertain` (so the deterministic code paths remain untouched).
-
-### Key Semantics (Important)
-
-- **Uncertain events**: each event has a probability distribution over activities (stored in XES attribute `probs_json`).
-- **`NA`**: interpreted as **“event absent”** (i.e., the event is dropped in that realization), so context windows must be constructed accordingly.
-- **Exactness vs scalability**: exact counting is still exact, but may produce a huge number of distinct contexts (especially for window size 9).
-
-### Recommended (Latest) Pipeline: Exact + Low RAM (SQLite backend)
-
-Use this if you want **exact results** without 20–30GB RAM spikes.
-
-- **Run all 12 methods × windows 3/5/9 (exact, low RAM)**:  
-  `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows_sqlite_exact.py`  
-  - Computes **AC/AA × Seq/MSet × none/PMI/PPMI** for **w ∈ {3,5,9}**
-  - Uses the SQLite backend below to avoid giant Python dicts in RAM
-  - Can optionally use **in-memory SQLite** (`:memory:`) on machines with enough RAM (auto-switch)
-- **Exact SQLite backend** (streaming aggregation + streaming distance computation):  
-  `distances/uncertain_activity_distances/data_util/uncertain_window_sqlite_backend.py`
-
-### Window-based Counting (Exact, but can be RAM-heavy in Python)
-
-These implement the **latest “window-realization enumeration”** approach, but keep large count maps in Python:
-
-- `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows.py`  
-  - Runs all methods; uses sparse AC math + label compression; can still peak high for w=9
-- `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows_subprocess.py`  
-  - Same as above, but isolates each pass in a subprocess so RSS doesn’t “stick” after a peak
-- `uncertain_scripts/run_uncertain_window_based_counts_demo.py`  
-  - Small demo for window-based expected counts (for understanding / debugging)
-
-### Trace-realization Enumeration (Older exact baseline) / Top‑K Approximation
-
-- **Older exact baseline (trace realization enumeration)**:  
-  `uncertain_scripts/run_uncertain_count_based_all_methods_all_windows.py`
-- **Approximation: top‑K most probable trace realizations (reports covered probability mass)**:  
-  `uncertain_scripts/run_uncertain_topk_most_probable_traces_all_methods.py`
-
-### Utilities / Tests
-
-- **Read uncertain XES into an in-memory structure**: `uncertain_utils/uncertain_xes_reader.py`
-- **Create a new XES with probability thresholding + renormalization**:  
-  `uncertain_scripts/create_xes_uncertain_thresholded_probs.py`
-- **Correctness tests**:
-  - `uncertain_tests/test_uncertain_window_vs_trace_counts.py` (window-based vs trace-based expected counts)
-  - `uncertain_tests/test_sparse_ac_matches_dense_ac.py` (sparse AC math vs dense reference)
 
 
 
@@ -566,3 +554,201 @@ Adjust the value of `number_of_repetitions = 5` to change how many independent r
 | [Nasa](https://data.4tu.nl/articles/_/12696995/1)                                                                                             |                    47 |          2566 |                0.98 |                12 |     28.7  |        50 | ×           | ✓           | ×         |
 | [RTFM](https://data.4tu.nl/articles/_/12683249/1)                                                                                             |                    11 |        150370 |                0    |                 2 |      3.73 |        20 | ✓           | ×           | ×         |
 | [Sepsis](https://data.4tu.nl/articles/dataset/Sepsis_Cases_-_Event_Log/12707639/1)                                                            |                    16 |          1050 |                0.81 |                 3 |     14.49 |       185 | ✓           | ✓           | ×         |
+
+## Journal extension: Uncertain Event Data
+
+This track corresponds to the journal extension (*Distributional Similarity Between Activities in Certain and Uncertain Event Data*). It extends distributional similarity to uncertain event data by using **expected counts** (probability-weighted frequencies) and by adapting act2vec via an expected-loss objective.
+
+### Data: IKEA ASM uncertain event logs
+
+The uncertain event logs used in the journal experiments are derived from **IKEA ASM** and action recognition outputs.
+
+- **In this repository (ready-to-run)**: processed uncertain XES logs and metadata are included under:
+  - `uncertain_event_data/ikea_asm/`
+- **Provenance / generation pipeline / additional documentation**:
+  - [GitHub: `henrikkirchmann/IKEA_ASM_UncertainEventLogs`](https://github.com/henrikkirchmann/IKEA_ASM_UncertainEventLogs)
+
+### Key semantics and parameters (paper terminology)
+
+- **Uncertain event**: each event has a probability distribution over candidate activities, with missing mass interpreted as **non-existence** (IKEA ASM uses label `NA`).
+- **Non-existence (`NA`)**: treated as “event absent” (skipped) when constructing trace realizations and context windows.
+- **Uncertainty level \(u\)**: we construct controlled inputs by keeping the top-\(u\) most probable realizations per event (including possible non-existence) and **renormalizing**.  
+  - The paper evaluates **\(u\in\{1,2,3\}\)**; the code supports larger values where feasible.
+- **Window sizes**:
+  - Intrinsic (certain): \(w\in\{3,5,9\}\)
+  - Intrinsic (uncertain) in the paper: \(w\in\{3,5\}\) (feasibility)
+  - Next-activity prediction (uncertain): \(w\in\{3,5\}\)
+
+### Methods (uncertain)
+
+#### Uncertain count-based family (expected counts)
+
+We evaluate 12 variants obtained by combining:
+- **Matrix type**: AA (activity–activity co-occurrence) vs AC (activity–context frequency)
+- **Context interpretation**: Seq vs MSet
+- **Post-processing**: none vs PMI vs PPMI
+
+Implementation (uncertain methods):
+- `distances/uncertain_activity_distances/`
+- Shared method dispatch / naming lives in `evaluation/data_util/util_activity_distances_uncertain.py`
+
+#### Uncertain act2vec (expected loss)
+
+We evaluate act2vec CBOW and Skip-gram adapted to uncertain logs by minimizing an expected loss over probabilistically realized context windows.
+
+Entry script:
+- `uncertain_scripts/run_uncertain_act2vec.py`
+
+---
+
+## :test_tube: Intrinsic Evaluation (uncertain event data)
+
+### 🔧 How to run the intrinsic benchmark (uncertain)
+
+Run:
+
+```bash
+python evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/evaluation_activity_distance_intrinsic_uncertain.py
+```
+
+### ⚙️ Configurable settings (important parameters)
+
+This script is IDE/PyCharm-friendly and configured by editing the constants in the `if __name__ == "__main__":` section:
+
+- **Methods**: `activity_distance_functions` (12 uncertain count-based + 2 uncertain act2vec), then window suffixes are added via `add_window_size_evaluation(...)`
+- **Window sizes**: `window_size_list = [3, 5, 9]` (set to `[3, 5]` to match the paper’s uncertain setup)
+- **Ground-truth generation (mirrors certain benchmark)**:
+  - `r_min`: max number of replaced activities (paper uses smaller ranges for feasibility in the uncertain setting)
+  - `w`: class size (number of replacements per replaced activity)
+  - `sampling_size`: number of sampled ground-truth logs
+  - `load_ground_truth_logs`: cache toggle
+- **Evaluated uncertain logs**: `log_list` (base names of XES files searched under `uncertain_event_logs/`)
+
+Uncertainty handling is controlled near the top of the file:
+- `BASE_TOPK`: constructs a common base log by truncation+renormalization to top-\(k\) candidates
+- `UNCERTAINTY_LEVELS`: the evaluated \(u\) levels (paper uses \(u\in\{1,2,3\}\))
+
+### 💾 Outputs (where results are written)
+
+The intrinsic uncertain benchmark writes:
+
+- **Cached ground-truth logs**:
+  - `evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/newly_created_logs/<log_name>/r_<r>_w_<w>_s_<s>.pkl`
+- **Cached per-method results**:
+  - `evaluation/evaluation_of_activity_distances/intrinsic_evaluation_uncertain/results/<log_name>/<method>/r_<r>_w_<w>_s_<s>_u_<u>.pkl`
+- **Per-run CSVs**:
+  - `results/activity_distances/intrinsic_uncertain/<log_name>/<log_name>_distfunc_<method>_u<u>_r<r>_w<w>_samplesize_<s>.csv`
+
+### 📊 Summarizing + plotting intrinsic uncertain results (paper-quality)
+
+To aggregate the per-run pickles into a single CSV and then create the paper plots:
+
+```bash
+python uncertain_scripts/summarize_uncertain_intrinsic_results.py
+python uncertain_scripts/plot_uncertain_intrinsic_results_pretty.py
+```
+
+Main inputs/outputs for the plot script:
+- **Input CSV**: `results/activity_distances/intrinsic_uncertain_summary/intrinsic_uncertain_aggregated_mean.csv`
+- **Plots (PDF/SVG)**: `results/activity_distances/intrinsic_uncertain_summary/paper_plots/`
+
+---
+
+## :fast_forward: Next-Activity Prediction (uncertain event data; Evermann)
+
+### 🔧 Running the benchmark
+
+Run:
+
+```bash
+python uncertain_scripts/run_uncertain_next_activity_prediction_evermann.py
+```
+
+In the paper, we report results for two IKEA ASM logs:
+- `clip_based__i3d__dev2__pretrained__rgb` (I3D, RGB, dev2)
+- `pose_based__HCN_32__pretrained__pose__dev3` (HCN-32, Pose, dev3)
+
+### ⚙️ Configurable settings (important parameters)
+
+Edit these constants in `uncertain_scripts/run_uncertain_next_activity_prediction_evermann.py`:
+
+- **Evaluated IKEA ASM logs**: `MODEL_IDS`  
+  (must match folders under `uncertain_event_data/ikea_asm/split=test/model=<MODEL_ID>/`)
+- **Window sizes**: `WINDOW_SIZES = [3, 5]`
+- **Uncertainty cap per segment**: `TOP_K_EVENT = 3`
+- **Embedding training variants** (paper notation \(u\) via training input):
+  - `top3_uncertain` (uses uncertain inputs; corresponds to \(u=3\))
+  - `top1_determinized` (determinized; corresponds to \(u=1\))
+- **Representations**:
+  - `expected_embedding` (probability-weighted sum of embeddings)
+  - `scaled_concat_full` (probability-scaled concatenation; skipped for all `Uncertain AC*` methods for feasibility)
+  - `argmax_onehot`, `weighted_onehot` (baselines)
+- **Training parameters**: `EPOCHS`, `BATCH_SIZE`, `MAX_LEN`, `SEED`, `SPLIT_STRATEGY`, and `TF_DEVICE` (GPU vs CPU)
+
+### 💾 Outputs
+
+The runner writes per-run CSVs to `results/`:
+- `results/next_activity_prediction_uncertain_evermann__<MODEL_ID>.csv`
+
+### 📊 Paper-quality plot
+
+```bash
+python uncertain_scripts/plot_uncertain_next_activity_prediction_pretty.py
+```
+
+By default, the plotting script reads:
+- `results/next_activity_prediction_uncertain_evermann__clip_based__i3d__dev2__pretrained__rgb.csv`
+- `results/next_activity_prediction_uncertain_evermann__pose_based__HCN_32__pretrained__pose__dev3.csv`
+
+Output:
+- `results/next_activity_prediction_uncertain_evermann/paper_plots/uncertain_next_activity_prediction_test_acc_2panel.pdf`
+
+---
+
+## :hourglass_flowing_sand: Runtime Analysis (uncertain event data)
+
+Run:
+
+```bash
+python uncertain_scripts/run_uncertain_runtime_analysis.py
+```
+
+Key parameters in `uncertain_scripts/run_uncertain_runtime_analysis.py`:
+- `LOG_LIST`: which IKEA ASM uncertain logs to benchmark
+- `WINDOW_SIZES`: e.g., `[3,5,9]`
+- `METHODS`: explicit list of methods (count-based + neural) to evaluate
+- `UNCERTAINTY_LEVEL_U`: apply top-\(u\) truncation + renormalization before measuring runtime (paper uses \(u=3\))
+- `REPETITIONS`: number of repetitions per configuration
+
+Output CSV:
+- `results/runtime_results_uncertain_pycharm_<REPETITIONS>_repetitions.csv`
+
+---
+
+## Uncertain count-based runners (optional; exact expected counts)
+
+If you want to recompute uncertain expected-count distances from XES (instead of using shipped CSVs/results), the most robust exact runner is:
+
+- `uncertain_scripts/run_uncertain_window_based_all_methods_all_windows_sqlite_exact.py`
+
+This uses a SQLite aggregation backend to keep RAM usage manageable (exact results, lower peak RAM).
+
+## Citation
+
+### ICPM 2025 paper
+
+Please cite:
+
+```bibtex
+@inproceedings{kirchmann2025lets,
+  title        = {Let’s Simply Count: Quantifying Distributional Similarity between Activities in Event Data},
+  author       = {Kirchmann, Henrik and Fahrenkrog-Petersen, Stephan A. and Lu, Xixi and Weidlich, Matthias},
+  booktitle    = {International Conference on Process Mining (ICPM)},
+  year         = {2025},
+  doi          = {10.1109/ICPM66919.2025.11220676}
+}
+```
+
+### Journal extension
+
+If you cite the uncertain-data extension, please cite the journal version (under review; BibTeX will be updated upon publication).
