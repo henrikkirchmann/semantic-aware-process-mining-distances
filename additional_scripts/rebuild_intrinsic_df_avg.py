@@ -17,10 +17,17 @@ the existing pkls::
              precision@1 | triplet
     one row per (Log Name, Distance Function)
 
-For each method we take the simple mean of every metric across every row
-(``r``, ``w``) found in every raw CSV for that (log, method) pair. Existing
-pkls are backed up to a sibling ``*.pkl.bak`` file the first time the script
-touches them, so the pre-rebuild data is recoverable.
+Only the canonical benchmark protocol is pooled: raw CSVs whose filename
+suffix is ``_r<N>_w5_samplesize_5.csv`` (i.e. evaluation window grid up to
+w=5 with 5 random samples per configuration). The alternative
+``_r<N>_w10_samplesize_10.csv`` grid uses a harsher benchmark configuration
+that produces systematically lower scores (prec@1 near 0 on several methods);
+mixing it with the canonical grid would pollute the cross-log averages and
+makes them disagree with the thesis. For each (log, method) pair we take the
+simple mean of every metric across every row (``r``, ``w``) found in every
+matching raw CSV. Existing pkls are backed up to a sibling ``*.pkl.bak`` file
+the first time the script touches them, so the pre-rebuild data is
+recoverable.
 """
 from __future__ import annotations
 
@@ -52,7 +59,11 @@ BENCH_LOGS = {
 # downstream ``load_all`` helper keeps working unchanged.
 OUT_FILENAME = "dfavg_r10_w5_samplesize_5.pkl"
 
-METHOD_NAME_RE = re.compile(r"_distfunc_(.+?)_r\d+_w\d+_samplesize_\d+\.csv$")
+# Canonical benchmark protocol suffix: pooled from the ``_rN_w5_samplesize_5``
+# family only (any r). The ``_w10_samplesize_10`` family is a different
+# evaluation configuration and is explicitly excluded.
+METHOD_NAME_RE = re.compile(r"_distfunc_(.+?)_r\d+_w5_samplesize_5\.csv$")
+CANONICAL_SUFFIX_RE = re.compile(r"_r\d+_w5_samplesize_5\.csv$")
 
 METRIC_COLS = ["diameter", "precision@w-1", "precision@1", "triplet"]
 
