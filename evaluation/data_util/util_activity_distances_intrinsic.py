@@ -226,11 +226,29 @@ def save_intrinsic_results(activity_distance_functions, results, log_name, r, w,
         df_average_values = pd.concat([df_average_values, new_row], ignore_index=True)
 
         activity_distance_function_index += 1
-    # Plot the results
     df_avg_dir = os.path.join(ROOT_DIR, "results", "activity_distances", "intrinsic_df_avg", log_name)
     os.makedirs(df_avg_dir, exist_ok=True)
     file_name = f"dfavg_r{r}_w{w}_samplesize_{sampling_size}.pkl"
-    file_path =os.path.join(df_avg_dir, file_name)
+    file_path = os.path.join(df_avg_dir, file_name)
+
+    # Merge with any pre-existing aggregate so that re-running the benchmark
+    # for a subset of methods does not silently drop rows for methods that
+    # were computed in earlier runs. Only the rows for methods evaluated in
+    # the current call are replaced; everything else is preserved.
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "rb") as file:
+                df_existing = pickle.load(file)
+            if isinstance(df_existing, pd.DataFrame) and "Distance Function" in df_existing.columns:
+                df_existing = df_existing[
+                    ~df_existing["Distance Function"].isin(activity_distance_functions)
+                ]
+                df_average_values = pd.concat(
+                    [df_existing, df_average_values], ignore_index=True
+                )
+        except Exception:
+            pass
+
     with open(file_path, "wb") as file:
         pickle.dump(df_average_values, file)
 
