@@ -296,6 +296,23 @@ Before running the analysis script:
    results/activity_distances/intrinsic_df_avg/
    ```
 
+#### Aggregated Results Across All Logs (Single CSV)
+
+For convenience, a single tidy CSV with one row per `(log, method)` and the four
+intrinsic metrics ($I_{\mathrm{comp}}$, $I_{\mathrm{nn}}$, $I_{\mathrm{prec}}$,
+$I_{\mathrm{tri}}$) is shipped at:
+
+```
+results/activity_distances/intrinsic_summary/intrinsic_results_per_log_and_method.csv
+```
+
+This file is produced from the per-log aggregates under
+`results/activity_distances/intrinsic_df_avg/<log>/dfavg_r10_w5_samplesize_5.pkl`
+(canonical protocol $r{=}10$, $w{=}5$, $s{=}5$) and is the easiest way to compare
+how each method performs across all event logs in a single spreadsheet. It can
+be regenerated from the per-log pkls via
+[`additional_scripts/export_unified_intrinsic_results_csv.py`](additional_scripts/export_unified_intrinsic_results_csv.py).
+
 ### 🔎 Intrinsic Evaluation Measures 
 
 #### Shared Notation for Intrinsic Evaluation Measures
@@ -522,6 +539,8 @@ Adjust the value of `number_of_repetitions = 5` to change how many independent r
 
 
 ### Event Log Statistics
+
+The same data is also available as a machine-readable CSV at [`log_stats.csv`](./log_stats.csv) (one row per log; columns: `log_name`, `unique_activities`, `num_traces`, `ratio_trace_variants`, `min_trace_length`, `avg_trace_length`, `max_trace_length`, plus the three `used_for_*` flags).
 
 | Event Log                                                                                                                                     |   # Unique Activities |   # of Traces |   #Variants/#Traces | Min. Trace Length |   Avg. TL |   Max. TL | Intrinsic   | Next Act.   | Runtime   |
 |:----------------------------------------------------------------------------------------------------------------------------------------------|----------------------:|--------------:|--------------------:|------------------:|----------:|----------:|:------------|:------------|:----------|
