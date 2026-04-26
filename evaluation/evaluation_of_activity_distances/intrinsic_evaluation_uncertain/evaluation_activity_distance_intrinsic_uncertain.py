@@ -418,6 +418,34 @@ def save_intrinsic_results_uncertain(activity_distance_functions, results, log_n
             os.makedirs(df_avg_dir, exist_ok=True)
             file_name = f"dfavg_r{r}_w{w}_samplesize_{sampling_size}.pkl"
             file_path = os.path.join(df_avg_dir, file_name)
+
+            # Merge with any pre-existing aggregate so that running the
+            # outer per-method loop (or re-running for a subset of methods)
+            # does not silently overwrite previously written rows. Only the
+            # row for this exact (method, u) is replaced; everything else
+            # is preserved. Note: the canonical paper aggregate is built
+            # by uncertain_scripts/summarize_uncertain_intrinsic_results.py
+            # directly from per-run pickles, so this file is provided as a
+            # convenience mirror of the deterministic dfavg layout.
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, "rb") as f:
+                        df_existing = pickle.load(f)
+                    if (
+                        isinstance(df_existing, pd.DataFrame)
+                        and {"Distance Function", "u"}.issubset(df_existing.columns)
+                    ):
+                        mask_replace = (
+                            (df_existing["Distance Function"] == method)
+                            & (df_existing["u"].astype(int) == int(u))
+                        )
+                        df_existing = df_existing[~mask_replace]
+                        df_average_values = pd.concat(
+                            [df_existing, df_average_values], ignore_index=True
+                        )
+                except Exception:
+                    pass
+
             with open(file_path, "wb") as f:
                 pickle.dump(df_average_values, f)
 
