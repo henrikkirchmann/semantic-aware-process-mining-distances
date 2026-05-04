@@ -1,6 +1,9 @@
 #!/usr/bin/env python
-
-
+# Next-activity prediction benchmark (Tax model).
+#
+# To reproduce the paper's results, copy the raw logs into raw_datasets/:
+#   cp evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_paper/*.xes.gz \
+#      evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/
 
 import os, sys, copy, random, time, re
 from datetime import datetime, timedelta

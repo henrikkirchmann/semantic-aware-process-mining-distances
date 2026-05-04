@@ -408,20 +408,44 @@ Following the approach of **Gamallo-Fernandez et al. (2023)** — *"Learning Con
 
 ### 📁 Datasets
 
-- Raw event logs are located in:  
-  [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets)
-and [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated)
+The pre-computed train/validation/test splits for all 20 paper logs are already included in the repository under:
 
-- We have split with [`evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py) the logs into:
-  - 64% training
-  - 16% validation
-  - 20% test
+```
+evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/
+```
 
-- The splits are saved under:  
-  [`evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/split_datasets/)
+The corresponding raw XES logs (needed to re-generate splits or inspect the original data) are stored in:
 
-All logs found in the [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets) folder will be used automatically for training and evaluation.
-You can move the other logs you want to evaluate from [`evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated`](evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_that_are_not_evaluated) to this folder.
+```
+evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_paper/
+```
+
+This folder contains all **20 event logs used in the paper's next-activity prediction benchmark**:
+
+| Log (file name) | Log name in results |
+|---|---|
+| `BPIC13_closed_problems.xes.gz` | BPIC13\_closed\_problems |
+| `BPIC13_incidents.xes.gz` | BPIC13\_incidents |
+| `BPIC13_open_problems.xes.gz` | BPIC13\_open\_problems |
+| `BPIC15_1.xes.gz` – `BPIC15_5.xes.gz` | BPIC15\_1 – BPIC15\_5 |
+| `BPI_2020_DomesticDeclarations.xes.gz` | BPI\_2020\_DomesticDeclarations |
+| `BPI_2020_InternationalDeclarations.xes.gz` | BPI\_2020\_InternationalDeclarations |
+| `BPI_2020_PermitLog.xes.gz` | BPI\_2020\_PermitLog |
+| `BPI_2020_PrepaidTravelCost.xes.gz` | BPI\_2020\_PrepaidTravelCost |
+| `BPI_2020_RequestForPayment.xes.gz` | BPI\_2020\_RequestForPayment |
+| `Helpdesk.xes.gz` | Helpdesk |
+| `SEPSIS.xes.gz` | SEPSIS |
+| `env_permit.xes.gz` | env\_permit |
+| `nasa.xes.gz` | nasa |
+
+> **To reproduce the paper results**, copy all files from `raw_datasets_paper/` into `raw_datasets/`:
+> ```bash
+> cp evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets_paper/*.xes.gz \
+>    evaluation/evaluation_of_activity_distances/next_activity_prediction/raw_datasets/
+> ```
+> All logs found in `raw_datasets/` are picked up automatically by the Evermann and Tax training scripts.
+
+- The splits were generated with [`evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py`](evaluation/evaluation_of_activity_distances/next_activity_prediction/generate_new_event_log_splits.py) (64% train / 16% val / 20% test). Pre-generated splits are committed to the repository and do not need to be regenerated.
 
 ---
 

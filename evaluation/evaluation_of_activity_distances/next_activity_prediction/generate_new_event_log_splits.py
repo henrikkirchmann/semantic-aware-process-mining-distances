@@ -31,7 +31,11 @@ import os
 # Get the absolute path of the current script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Define directories relative to the script's location
+# Define directories relative to the script's location.
+# raw_datasets/ is the working folder: copy the paper logs there first:
+#   cp raw_datasets_paper/*.xes.gz raw_datasets/
+# Pre-generated splits are already committed in split_datasets/ and do not
+# need to be regenerated unless you want to use a different random seed.
 raw_dir = os.path.join(script_dir, "raw_datasets")
 split_dir = os.path.join(script_dir, "split_datasets")
 os.makedirs(split_dir, exist_ok=True)
