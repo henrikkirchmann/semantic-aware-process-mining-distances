@@ -313,6 +313,37 @@ how each method performs across all event logs in a single spreadsheet. It can
 be regenerated from the per-log pkls via
 [`additional_scripts/export_unified_intrinsic_results_csv.py`](additional_scripts/export_unified_intrinsic_results_csv.py).
 
+#### Verifying the Per-Log Analysis Discussion
+
+All claims in the paper's **"Per-Log Analysis"** paragraph can be verified directly from two
+committed files:
+
+| File | Purpose |
+|---|---|
+| `results/activity_distances/intrinsic_summary/intrinsic_results_per_log_and_method.csv` | One row per `(log, method)` with all four intrinsic metrics |
+| `log_stats.csv` | Descriptive statistics per log (unique activities, traces, trace-variant ratio, avg trace length) |
+
+A standalone verification script checks every claim automatically (all checks print PASS/FAIL):
+
+```bash
+python3 additional_scripts/verify_per_log_analysis_claims.py
+```
+
+> [`additional_scripts/verify_per_log_analysis_claims.py`](additional_scripts/verify_per_log_analysis_claims.py)
+
+> **Note on paper text vs. corrected results.**
+> The submitted paper text contains two claims that reflect the original (buggy) aggregates and
+> need updating:
+> * The Chiorrini $I_\mathrm{nn}$ range on BPIC15 is stated as **0.17–0.27**; the corrected
+>   value is **0.13–0.18** (BPIC15\_3: 0.13, BPIC15\_5: 0.13, BPIC15\_1: 0.16, BPIC15\_2: 0.16,
+>   BPIC15\_4: 0.18).
+> * The statement that Chiorrini wins $I_\mathrm{nn}$ on "BPIC13 variants" is incorrect; Chiorrini
+>   wins only on **BPIC12\_O**, **BPIC12\_W\_Complete**, and **CCC19**.
+> * On BPIC15, the leaders are Activity-Context **Bag-of-Words / N-Gram** variants, not "multiset";
+>   and act2vec **CBOW** (not Skip-gram) leads on BPIC15\_5.
+
+---
+
 ### 🔎 Intrinsic Evaluation Measures 
 
 #### Shared Notation for Intrinsic Evaluation Measures
